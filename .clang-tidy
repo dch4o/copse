@@ -1,5 +1,5 @@
 ---
-# clang-tidy configuration for topiary.
+# clang-tidy configuration for tkd-tree.
 # Wired into the build via cmake/ClangTidy.cmake (option TOPIARY_ENABLE_CLANG_TIDY).
 #
 # Philosophy: enable broad checks, then mute the ones that bite hardest in a
