@@ -1,10 +1,3 @@
----
-title: tkd-tree
-description: Fixed-capacity kd-tree with FIFO eviction and resolution-based dedup for low-dimensional point streams.
-language: C++20
-status: WIP
----
-
 # tkd-tree
 
 A fixed-capacity kd-tree of `float` points in low dimensions (D ∈ {2, 3, 4}),
