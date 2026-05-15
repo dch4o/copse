@@ -1,0 +1,36 @@
+# Build outputs
+build/
+build-*/
+out/
+cmake-build-*/
+
+# CMake artifacts
+CMakeCache.txt
+CMakeFiles/
+CMakeUserPresets.json
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+
+# IDE / editor
+.vscode/
+.idea/
+.cache/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage / profiling
+*.gcda
+*.gcno
+*.gcov
+*.profraw
+*.profdata
+coverage/
+
+# Local Claude settings
+.claude/settings.local.json

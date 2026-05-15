@@ -1,0 +1,43 @@
+---
+BasedOnStyle: LLVM
+Language: Cpp
+Standard: c++20
+
+ColumnLimit: 110
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+
+AccessModifierOffset: -4
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments: Consecutive
+AlignConsecutiveDeclarations: Consecutive
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AlwaysBreakTemplateDeclarations: Yes
+BinPackArguments: false
+BinPackParameters: false
+BreakBeforeBraces: Attach
+BreakConstructorInitializers: BeforeComma
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
+DerivePointerAlignment: false
+FixNamespaceComments: true
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex:    '^"pkd_tree/'
+    Priority: 1
+  - Regex:    '^<Eigen/'
+    Priority: 2
+  - Regex:    '^<catch2/'
+    Priority: 3
+  - Regex:    '^<.*\.h>'
+    Priority: 4
+  - Regex:    '^<.*>'
+    Priority: 5
+NamespaceIndentation: None
+PointerAlignment: Left
+ReflowComments: true
+SortIncludes: true
+SpaceAfterTemplateKeyword: true
+SpacesBeforeTrailingComments: 1
