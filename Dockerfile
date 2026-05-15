@@ -20,6 +20,7 @@ RUN apt-get update \
     lsb-release \
     mesa-utils \
     ninja-build \
+    openssh-client \
     software-properties-common \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
