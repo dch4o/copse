@@ -1,6 +1,6 @@
 #pragma once
 
-#include "pkd_tree/impl/point_traits.hpp"
+#include "topiary/impl/point_traits.hpp"
 
 #include <Eigen/Core>
 
@@ -9,7 +9,7 @@
 #include <functional>
 #include <vector>
 
-namespace pkd_tree::internal {
+namespace topiary::internal {
 
 /// @brief Backing store for points, liveness, and FIFO buffer bookkeeping.
 template <int Dim>
@@ -17,7 +17,7 @@ class PointStore {
 public:
     using Point = detail::PointType<Dim>;
 
-    /// @brief Construct with fixed capacity (must be > 0; validated by enclosing FixedKdTreeImpl).
+    /// @brief Construct with fixed capacity (must be > 0; validated by enclosing KDTreeImpl).
     explicit PointStore(std::size_t capacity);
 
     std::size_t capacity() const noexcept;
@@ -58,4 +58,4 @@ private:
     std::uint32_t              buf_tail_ = 0;
 };
 
-} // namespace pkd_tree::internal
+} // namespace topiary::internal

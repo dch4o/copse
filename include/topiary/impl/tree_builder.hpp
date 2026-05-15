@@ -1,15 +1,15 @@
 #pragma once
 
-#include "pkd_tree/impl/leaf_bucket.hpp"
-#include "pkd_tree/impl/point_store.hpp"
-#include "pkd_tree/impl/tree_node.hpp"
+#include "topiary/impl/leaf_bucket.hpp"
+#include "topiary/impl/point_store.hpp"
+#include "topiary/impl/tree_node.hpp"
 
 #include <cstddef>
 #include <cstdint>
 #include <span>
 #include <vector>
 
-namespace pkd_tree::internal {
+namespace topiary::internal {
 
 /// @brief Builds and partially-rebuilds the kd-tree topology over an externally-owned node pool.
 template <int Dim>
@@ -54,4 +54,4 @@ private:
     float                    tombstone_threshold_;
 };
 
-} // namespace pkd_tree::internal
+} // namespace topiary::internal

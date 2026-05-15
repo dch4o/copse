@@ -1,16 +1,16 @@
 #pragma once
 
-#include "pkd_tree/fixed_kd_tree.hpp"
-#include "pkd_tree/impl/leaf_bucket.hpp"
-#include "pkd_tree/impl/point_store.hpp"
-#include "pkd_tree/impl/point_traits.hpp"
-#include "pkd_tree/impl/tree_node.hpp"
+#include "topiary/kd_tree.hpp"
+#include "topiary/impl/leaf_bucket.hpp"
+#include "topiary/impl/point_store.hpp"
+#include "topiary/impl/point_traits.hpp"
+#include "topiary/impl/tree_node.hpp"
 
 #include <cstddef>
 #include <cstdint>
 #include <vector>
 
-namespace pkd_tree::internal {
+namespace topiary::internal {
 
 /// @brief Single bounded traversal kernel shared by knn / radius / hybrid searches.
 /// Holds non-owning references to the node pool, leaf-bucket pool, and point store.
@@ -18,7 +18,7 @@ template <int Dim>
 class SearchKernel {
 public:
     using Point    = detail::PointType<Dim>;
-    using Neighbor = typename pkd_tree::FixedKdTree<Dim>::Neighbor;
+    using Neighbor = typename topiary::KDTree<Dim>::Neighbor;
 
     /// @brief Construct a kernel bound to the supplied storage.
     SearchKernel(const std::vector<TreeNode>& node_pool,
@@ -44,4 +44,4 @@ private:
     const PointStore<Dim>&       points_;
 };
 
-} // namespace pkd_tree::internal
+} // namespace topiary::internal

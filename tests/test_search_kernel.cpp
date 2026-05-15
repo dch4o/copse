@@ -1,10 +1,10 @@
 // BDD tests for SearchKernel<Dim>: brute-force agreement on random inputs across D ∈ {2, 3, 4}.
 
-#include "pkd_tree/impl/leaf_bucket.hpp"
-#include "pkd_tree/impl/point_store.hpp"
-#include "pkd_tree/impl/search_kernel.hpp"
-#include "pkd_tree/impl/tree_builder.hpp"
-#include "pkd_tree/impl/tree_node.hpp"
+#include "topiary/impl/leaf_bucket.hpp"
+#include "topiary/impl/point_store.hpp"
+#include "topiary/impl/search_kernel.hpp"
+#include "topiary/impl/tree_builder.hpp"
+#include "topiary/impl/tree_node.hpp"
 
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -15,7 +15,7 @@
 #include <utility>
 #include <vector>
 
-namespace pkd_tree::internal {
+namespace topiary::internal {
 
 namespace {
 
@@ -757,4 +757,4 @@ SCENARIO("SearchKernel::any_within agrees with collect_indices_within on 100 ran
     }
 }
 
-} // namespace pkd_tree::internal
+} // namespace topiary::internal

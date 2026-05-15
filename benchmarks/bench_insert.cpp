@@ -2,7 +2,7 @@
 // FIFO-eviction regime. TEST_CASEs slice the matrix differently — batch-size
 // sweep, full-tree warm path, capacity sweep × cold/warm regime.
 
-#include "pkd_tree/pkd_tree.hpp"
+#include "topiary/topiary.hpp"
 
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -12,13 +12,13 @@
 #include <random>
 #include <vector>
 
-namespace pkd_tree {
+namespace topiary {
 
 namespace {
 
 constexpr float kResolution = 1e-6f; // small enough that random points never dedup-collide.
 
-using Tree  = FixedKdTree3;
+using Tree  = KDTree3;
 using Point = Tree::Point;
 
 std::vector<Point> make_points(std::size_t count, std::uint64_t seed) {
@@ -41,7 +41,7 @@ Tree::Config make_config(std::size_t capacity) {
 
 } // namespace
 
-TEST_CASE("Bench: batched insert into FixedKdTree3", "[!benchmark][insert]") {
+TEST_CASE("Bench: batched insert into KDTree3", "[!benchmark][insert]") {
     // Cold-tree insert at two headline batch sizes. Reported time covers fresh
     // tree construction plus the single insert call.
 
@@ -183,4 +183,4 @@ TEST_CASE("Bench: cold vs warm insert across capacity (D=3, batch=10k)", "[!benc
     };
 }
 
-} // namespace pkd_tree
+} // namespace topiary

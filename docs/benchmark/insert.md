@@ -2,7 +2,7 @@
 
 > Run date: 2026-05-14 · Source: `benchmarks/bench_insert.cpp`
 
-Per-call cost of `FixedKdTree3::insert` across capacity, batch size,
+Per-call cost of `KDTree3::insert` across capacity, batch size,
 and FIFO-eviction regime.
 
 ## Methodology

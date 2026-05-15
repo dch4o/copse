@@ -2,7 +2,7 @@
 
 > Run date: 2026-05-14 · Source: `benchmarks/bench_remove.cpp`
 
-Per-call cost of `FixedKdTree3::remove` across query-list sizes at a
+Per-call cost of `KDTree3::remove` across query-list sizes at a
 1M live-point tree. Exercises the remove path: per-query
 `collect_indices_within(resolution²)` → `tombstone_index` →
 `PointStore::release` → end-of-batch `maybe_partial_rebuild`.

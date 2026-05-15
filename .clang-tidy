@@ -1,6 +1,6 @@
 ---
-# clang-tidy configuration for pkd_tree.
-# Wired into the build via cmake/ClangTidy.cmake (option PKD_ENABLE_CLANG_TIDY).
+# clang-tidy configuration for topiary.
+# Wired into the build via cmake/ClangTidy.cmake (option TOPIARY_ENABLE_CLANG_TIDY).
 #
 # Philosophy: enable broad checks, then mute the ones that bite hardest in a
 # numeric / container-heavy codebase. Re-evaluate each carve-out once real
@@ -30,7 +30,7 @@ Checks: >
 WarningsAsErrors: ''
 
 # Restrict diagnostics to first-party headers/sources; do not lint Eigen / Catch2.
-HeaderFilterRegex: '.*/(include/pkd_tree|src)/.*\.(hpp|h)$'
+HeaderFilterRegex: '.*/(include/topiary|src)/.*\.(hpp|h)$'
 
 FormatStyle: file
 

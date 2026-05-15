@@ -1,9 +1,9 @@
 // BDD tests for TreeBuilder<Dim>::rebuild on a small fixed point set.
 
-#include "pkd_tree/impl/leaf_bucket.hpp"
-#include "pkd_tree/impl/point_store.hpp"
-#include "pkd_tree/impl/tree_builder.hpp"
-#include "pkd_tree/impl/tree_node.hpp"
+#include "topiary/impl/leaf_bucket.hpp"
+#include "topiary/impl/point_store.hpp"
+#include "topiary/impl/tree_builder.hpp"
+#include "topiary/impl/tree_node.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -12,7 +12,7 @@
 #include <set>
 #include <vector>
 
-namespace pkd_tree::internal {
+namespace topiary::internal {
 
 namespace {
 
@@ -822,4 +822,4 @@ SCENARIO("TreeBuilder<3>::maybe_partial_rebuild keeps the scapegoat slot index v
     }
 }
 
-} // namespace pkd_tree::internal
+} // namespace topiary::internal

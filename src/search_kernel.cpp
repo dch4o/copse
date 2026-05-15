@@ -1,11 +1,11 @@
-#include "pkd_tree/impl/search_kernel.hpp"
+#include "topiary/impl/search_kernel.hpp"
 
 #include <algorithm>
 #include <cstddef>
 #include <limits>
 #include <vector>
 
-namespace pkd_tree::internal {
+namespace topiary::internal {
 
 namespace {
 
@@ -232,4 +232,4 @@ template class SearchKernel<2>;
 template class SearchKernel<3>;
 template class SearchKernel<4>;
 
-} // namespace pkd_tree::internal
+} // namespace topiary::internal

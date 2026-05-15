@@ -2,7 +2,7 @@
 // pre-built tree (knn k=1/8/32, radius, hybrid) and mixed-cycle throughput
 // (1 small insert batch followed by a query burst) at two live-point scales.
 
-#include "pkd_tree/pkd_tree.hpp"
+#include "topiary/topiary.hpp"
 
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -13,7 +13,7 @@
 #include <random>
 #include <vector>
 
-namespace pkd_tree {
+namespace topiary {
 
 namespace {
 
@@ -25,7 +25,7 @@ constexpr std::size_t   kPrefill      = 100'000;
 constexpr std::size_t   kQueryPool    = 256;
 constexpr float         kRadius       = 5.0f; // ~10–50 hits on uniform 100k points in [0,100)^3.
 
-using Tree  = FixedKdTree3;
+using Tree  = KDTree3;
 using Point = Tree::Point;
 
 std::vector<Point> make_points(std::size_t count, std::uint64_t seed, float extent) {
@@ -271,4 +271,4 @@ TEST_CASE("Bench: radius_search radius sweep", "[!benchmark][search][radius][swe
     };
 }
 
-} // namespace pkd_tree
+} // namespace topiary

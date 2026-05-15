@@ -1,12 +1,12 @@
-#include "pkd_tree/impl/fixed_kd_tree_impl.hpp"
+#include "topiary/impl/kd_tree_impl.hpp"
 
 #include <limits>
 #include <stdexcept>
 
-namespace pkd_tree::internal {
+namespace topiary::internal {
 
 template <int Dim>
-FixedKdTreeImpl<Dim>::FixedKdTreeImpl(Config cfg)
+KDTreeImpl<Dim>::KDTreeImpl(Config cfg)
     : cfg_(cfg)
     , points_(cfg.capacity)
     , leaf_buckets_(cfg.capacity * 2)
@@ -25,24 +25,24 @@ FixedKdTreeImpl<Dim>::FixedKdTreeImpl(Config cfg)
     , kernel_(nodes_, leaf_buckets_, points_) {
     work_indices_.reserve(cfg.capacity);
     if (cfg.capacity == 0) {
-        throw std::invalid_argument{"FixedKdTree::Config: capacity must be > 0"};
+        throw std::invalid_argument{"KDTree::Config: capacity must be > 0"};
     }
     if (!(cfg.resolution > 0.0f)) {
-        throw std::invalid_argument{"FixedKdTree::Config: resolution must be > 0"};
+        throw std::invalid_argument{"KDTree::Config: resolution must be > 0"};
     }
     if (cfg.leaf_bucket_size == 0) {
-        throw std::invalid_argument{"FixedKdTree::Config: leaf_bucket_size must be > 0"};
+        throw std::invalid_argument{"KDTree::Config: leaf_bucket_size must be > 0"};
     }
     if (!(cfg.alpha > 0.5f && cfg.alpha < 1.0f)) {
-        throw std::invalid_argument{"FixedKdTree::Config: alpha must lie in (0.5, 1.0)"};
+        throw std::invalid_argument{"KDTree::Config: alpha must lie in (0.5, 1.0)"};
     }
     if (!(cfg.tombstone_threshold >= 0.0f && cfg.tombstone_threshold <= 1.0f)) {
-        throw std::invalid_argument{"FixedKdTree::Config: tombstone_threshold must lie in [0, 1]"};
+        throw std::invalid_argument{"KDTree::Config: tombstone_threshold must lie in [0, 1]"};
     }
 }
 
 template <int Dim>
-std::size_t FixedKdTreeImpl<Dim>::insert(std::span<const Point> points) {
+std::size_t KDTreeImpl<Dim>::insert(std::span<const Point> points) {
     const float sq_res = cfg_.resolution * cfg_.resolution;
 
     std::size_t inserted = 0;
@@ -68,7 +68,7 @@ std::size_t FixedKdTreeImpl<Dim>::insert(std::span<const Point> points) {
 }
 
 template <int Dim>
-std::size_t FixedKdTreeImpl<Dim>::remove(std::span<const Point> queries) {
+std::size_t KDTreeImpl<Dim>::remove(std::span<const Point> queries) {
     const float sq_radius = cfg_.resolution * cfg_.resolution;
 
     std::size_t cleared = 0;
@@ -86,33 +86,33 @@ std::size_t FixedKdTreeImpl<Dim>::remove(std::span<const Point> queries) {
 }
 
 template <int Dim>
-auto FixedKdTreeImpl<Dim>::knn_search(const Point& query, std::size_t k) const -> std::vector<Neighbor> {
+auto KDTreeImpl<Dim>::knn_search(const Point& query, std::size_t k) const -> std::vector<Neighbor> {
     return kernel_.search(root_, query, k, std::numeric_limits<float>::infinity());
 }
 
 template <int Dim>
-auto FixedKdTreeImpl<Dim>::radius_search(const Point& query, float radius) const -> std::vector<Neighbor> {
+auto KDTreeImpl<Dim>::radius_search(const Point& query, float radius) const -> std::vector<Neighbor> {
     return kernel_.search(root_, query, std::numeric_limits<std::size_t>::max(), radius * radius);
 }
 
 template <int Dim>
-auto FixedKdTreeImpl<Dim>::hybrid_search(const Point& query, std::size_t k, float radius) const
+auto KDTreeImpl<Dim>::hybrid_search(const Point& query, std::size_t k, float radius) const
     -> std::vector<Neighbor> {
     return kernel_.search(root_, query, k, radius * radius);
 }
 
 template <int Dim>
-std::size_t FixedKdTreeImpl<Dim>::size() const noexcept {
+std::size_t KDTreeImpl<Dim>::size() const noexcept {
     return points_.size();
 }
 
 template <int Dim>
-std::size_t FixedKdTreeImpl<Dim>::capacity() const noexcept {
+std::size_t KDTreeImpl<Dim>::capacity() const noexcept {
     return points_.capacity();
 }
 
 template <int Dim>
-void FixedKdTreeImpl<Dim>::rebuild_all() {
+void KDTreeImpl<Dim>::rebuild_all() {
     nodes_.clear();
     leaf_buckets_.clear();
     leaf_bboxes_.clear();
@@ -129,8 +129,8 @@ void FixedKdTreeImpl<Dim>::rebuild_all() {
     root_ = builder_.rebuild(work_indices_);
 }
 
-template class FixedKdTreeImpl<2>;
-template class FixedKdTreeImpl<3>;
-template class FixedKdTreeImpl<4>;
+template class KDTreeImpl<2>;
+template class KDTreeImpl<3>;
+template class KDTreeImpl<4>;
 
-} // namespace pkd_tree::internal
+} // namespace topiary::internal

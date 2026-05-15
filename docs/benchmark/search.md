@@ -2,7 +2,7 @@
 
 > Run date: 2026-05-14 · Source: `benchmarks/bench_search.cpp`
 
-Per-query latency of `FixedKdTree3::knn_search`, `radius_search`,
+Per-query latency of `KDTree3::knn_search`, `radius_search`,
 `hybrid_search`, plus N-sweep + radius-sweep, plus mixed insert/query
 cycle throughput.
 

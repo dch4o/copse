@@ -1,6 +1,6 @@
-#include "pkd_tree/impl/leaf_bucket.hpp"
+#include "topiary/impl/leaf_bucket.hpp"
 
-namespace pkd_tree::internal {
+namespace topiary::internal {
 
 LeafBucket::LeafBucket(std::size_t initial_entries) {
     data_.reserve(initial_entries);
@@ -31,4 +31,4 @@ void LeafBucket::clear() noexcept {
     data_.clear();
 }
 
-} // namespace pkd_tree::internal
+} // namespace topiary::internal

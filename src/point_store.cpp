@@ -1,10 +1,10 @@
-#include "pkd_tree/impl/point_store.hpp"
+#include "topiary/impl/point_store.hpp"
 
 #include <numeric>
 #include <stdexcept>
 #include <utility>
 
-namespace pkd_tree::internal {
+namespace topiary::internal {
 
 template <int Dim>
 PointStore<Dim>::PointStore(std::size_t capacity)
@@ -98,4 +98,4 @@ template class PointStore<2>;
 template class PointStore<3>;
 template class PointStore<4>;
 
-} // namespace pkd_tree::internal
+} // namespace topiary::internal

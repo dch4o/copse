@@ -1,10 +1,10 @@
 #pragma once
 
-#include "pkd_tree/impl/point_traits.hpp"
+#include "topiary/impl/point_traits.hpp"
 
 #include <cstdint>
 
-namespace pkd_tree::internal {
+namespace topiary::internal {
 
 /// @brief Axis-aligned bounding box used for leaf-level pruning and the whole-tree root extent.
 template <int Dim>
@@ -56,4 +56,4 @@ struct TreeNode {
 
 static_assert(sizeof(TreeNode) == 32, "TreeNode must stay 32 B for cache density on descent");
 
-} // namespace pkd_tree::internal
+} // namespace topiary::internal

@@ -1,4 +1,4 @@
-#include "pkd_tree/impl/tree_builder.hpp"
+#include "topiary/impl/tree_builder.hpp"
 
 #include <algorithm>
 #include <array>
@@ -6,7 +6,7 @@
 #include <limits>
 #include <vector>
 
-namespace pkd_tree::internal {
+namespace topiary::internal {
 
 namespace {
 
@@ -311,4 +311,4 @@ template class TreeBuilder<2>;
 template class TreeBuilder<3>;
 template class TreeBuilder<4>;
 
-} // namespace pkd_tree::internal
+} // namespace topiary::internal

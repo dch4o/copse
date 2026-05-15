@@ -2,7 +2,7 @@
 // steady-state cost (insert that may trigger a scapegoat rebuild) against
 // the explicit full rebuild_all() reference.
 
-#include "pkd_tree/pkd_tree.hpp"
+#include "topiary/topiary.hpp"
 
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -12,7 +12,7 @@
 #include <random>
 #include <vector>
 
-namespace pkd_tree {
+namespace topiary {
 
 namespace {
 
@@ -22,7 +22,7 @@ constexpr float         kCoordExtent = 100.0f;
 constexpr std::size_t   kCapacity    = 1'000'000;
 constexpr std::size_t   kSteadyBatch = 5'000;
 
-using Tree  = FixedKdTree3;
+using Tree  = KDTree3;
 using Point = Tree::Point;
 
 std::vector<Point> make_points(std::size_t count, std::uint64_t seed, float extent) {
@@ -216,4 +216,4 @@ TEST_CASE("Bench: tombstone-triggered partial rebuild, 1M points",
     };
 }
 
-} // namespace pkd_tree
+} // namespace topiary

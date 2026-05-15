@@ -1,6 +1,6 @@
 #pragma once
 
-#include "pkd_tree/impl/point_traits.hpp"
+#include "topiary/impl/point_traits.hpp"
 
 #include <Eigen/Core>
 
@@ -9,19 +9,19 @@
 #include <span>
 #include <vector>
 
-namespace pkd_tree {
+namespace topiary {
 
 namespace internal {
-/// @brief PIMPL implementation type, defined in `impl/fixed_kd_tree_impl.hpp`.
+/// @brief PIMPL implementation type, defined in `impl/kd_tree_impl.hpp`.
 template <int Dim>
-class FixedKdTreeImpl;
+class KDTreeImpl;
 } // namespace internal
 
 /// @brief Fixed-capacity, mutable kd-tree of float points with FIFO eviction and resolution-based dedup.
 /// Single-writer; the caller is responsible for serializing access.
 template <int Dim>
-    requires detail::KdDim<Dim>
-class FixedKdTree {
+    requires detail::KDDim<Dim>
+class KDTree {
 public:
     using Point = detail::PointType<Dim>; /// Canonical Eigen column-vector point type.
 
@@ -45,14 +45,14 @@ public:
 
     /// @brief Construct a kd-tree with the supplied configuration.
     /// @throws std::invalid_argument If any precondition on `cfg` is violated.
-    explicit FixedKdTree(Config cfg);
+    explicit KDTree(Config cfg);
 
-    ~FixedKdTree();
+    ~KDTree();
 
-    FixedKdTree(const FixedKdTree&)            = delete;
-    FixedKdTree& operator=(const FixedKdTree&) = delete;
-    FixedKdTree(FixedKdTree&&) noexcept;
-    FixedKdTree& operator=(FixedKdTree&&) noexcept;
+    KDTree(const KDTree&)            = delete;
+    KDTree& operator=(const KDTree&) = delete;
+    KDTree(KDTree&&) noexcept;
+    KDTree& operator=(KDTree&&) noexcept;
 
     /// @brief Insert a batch with intra-batch and tree-side dedup; FIFO-evicts when full.
     /// @return Number of input points actually written (FIFO evictions count; dedup-rejects do not).
@@ -83,14 +83,14 @@ public:
     void rebuild_all();
 
 private:
-    std::unique_ptr<internal::FixedKdTreeImpl<Dim>> impl_;
+    std::unique_ptr<internal::KDTreeImpl<Dim>> impl_;
 };
 
 /// @name Convenience aliases for the supported D values.
 /// @{
-using FixedKdTree2 = FixedKdTree<2>;
-using FixedKdTree3 = FixedKdTree<3>;
-using FixedKdTree4 = FixedKdTree<4>;
+using KDTree2 = KDTree<2>;
+using KDTree3 = KDTree<3>;
+using KDTree4 = KDTree<4>;
 /// @}
 
-} // namespace pkd_tree
+} // namespace topiary

@@ -1,7 +1,7 @@
-// BDD tests for the public FixedKdTree<Dim> facade.
+// BDD tests for the public KDTree<Dim> facade.
 // Black-box behavior only — internal helpers have their own test files.
 
-#include "pkd_tree/pkd_tree.hpp"
+#include "topiary/topiary.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -11,13 +11,13 @@
 #include <utility>
 #include <vector>
 
-namespace pkd_tree {
+namespace topiary {
 
-SCENARIO("FixedKdTree3 construction validates Config", "[fixed_kd_tree][ctor]") {
+SCENARIO("KDTree3 construction validates Config", "[kd_tree][ctor]") {
     GIVEN("a valid Config") {
-        FixedKdTree<3>::Config cfg{.capacity = 16, .resolution = 0.01f};
+        KDTree<3>::Config cfg{.capacity = 16, .resolution = 0.01f};
         WHEN("the tree is constructed") {
-            FixedKdTree<3> tree{cfg};
+            KDTree<3> tree{cfg};
             THEN("size is zero and capacity is the configured value") {
                 REQUIRE(tree.size() == 0);
                 REQUIRE(tree.capacity() == 16);
@@ -26,51 +26,51 @@ SCENARIO("FixedKdTree3 construction validates Config", "[fixed_kd_tree][ctor]") 
     }
 
     GIVEN("a Config with capacity == 0") {
-        FixedKdTree<3>::Config cfg{.capacity = 0, .resolution = 0.01f};
+        KDTree<3>::Config cfg{.capacity = 0, .resolution = 0.01f};
         THEN("the constructor throws std::invalid_argument") {
-            REQUIRE_THROWS_AS(FixedKdTree<3>{cfg}, std::invalid_argument);
+            REQUIRE_THROWS_AS(KDTree<3>{cfg}, std::invalid_argument);
         }
     }
 
     GIVEN("a Config with non-positive resolution") {
-        FixedKdTree<3>::Config cfg_zero{.capacity = 4, .resolution = 0.0f};
-        FixedKdTree<3>::Config cfg_neg{.capacity = 4, .resolution = -1.0f};
+        KDTree<3>::Config cfg_zero{.capacity = 4, .resolution = 0.0f};
+        KDTree<3>::Config cfg_neg{.capacity = 4, .resolution = -1.0f};
         THEN("the constructor throws std::invalid_argument") {
-            REQUIRE_THROWS_AS(FixedKdTree<3>{cfg_zero}, std::invalid_argument);
-            REQUIRE_THROWS_AS(FixedKdTree<3>{cfg_neg}, std::invalid_argument);
+            REQUIRE_THROWS_AS(KDTree<3>{cfg_zero}, std::invalid_argument);
+            REQUIRE_THROWS_AS(KDTree<3>{cfg_neg}, std::invalid_argument);
         }
     }
 
     GIVEN("a Config with leaf_bucket_size == 0") {
-        FixedKdTree<3>::Config cfg{.capacity = 4, .resolution = 0.01f, .leaf_bucket_size = 0};
+        KDTree<3>::Config cfg{.capacity = 4, .resolution = 0.01f, .leaf_bucket_size = 0};
         THEN("the constructor throws std::invalid_argument") {
-            REQUIRE_THROWS_AS(FixedKdTree<3>{cfg}, std::invalid_argument);
+            REQUIRE_THROWS_AS(KDTree<3>{cfg}, std::invalid_argument);
         }
     }
 
     GIVEN("a Config with alpha outside (0.5, 1.0)") {
-        FixedKdTree<3>::Config cfg_low{.capacity = 4, .resolution = 0.01f, .alpha = 0.5f};
-        FixedKdTree<3>::Config cfg_high{.capacity = 4, .resolution = 0.01f, .alpha = 1.0f};
+        KDTree<3>::Config cfg_low{.capacity = 4, .resolution = 0.01f, .alpha = 0.5f};
+        KDTree<3>::Config cfg_high{.capacity = 4, .resolution = 0.01f, .alpha = 1.0f};
         THEN("the constructor throws std::invalid_argument") {
-            REQUIRE_THROWS_AS(FixedKdTree<3>{cfg_low}, std::invalid_argument);
-            REQUIRE_THROWS_AS(FixedKdTree<3>{cfg_high}, std::invalid_argument);
+            REQUIRE_THROWS_AS(KDTree<3>{cfg_low}, std::invalid_argument);
+            REQUIRE_THROWS_AS(KDTree<3>{cfg_high}, std::invalid_argument);
         }
     }
 
     GIVEN("a Config with tombstone_threshold outside [0, 1]") {
-        FixedKdTree<3>::Config cfg_neg{.capacity = 4, .resolution = 0.01f, .tombstone_threshold = -0.1f};
-        FixedKdTree<3>::Config cfg_big{.capacity = 4, .resolution = 0.01f, .tombstone_threshold = 1.1f};
+        KDTree<3>::Config cfg_neg{.capacity = 4, .resolution = 0.01f, .tombstone_threshold = -0.1f};
+        KDTree<3>::Config cfg_big{.capacity = 4, .resolution = 0.01f, .tombstone_threshold = 1.1f};
         THEN("the constructor throws std::invalid_argument") {
-            REQUIRE_THROWS_AS(FixedKdTree<3>{cfg_neg}, std::invalid_argument);
-            REQUIRE_THROWS_AS(FixedKdTree<3>{cfg_big}, std::invalid_argument);
+            REQUIRE_THROWS_AS(KDTree<3>{cfg_neg}, std::invalid_argument);
+            REQUIRE_THROWS_AS(KDTree<3>{cfg_big}, std::invalid_argument);
         }
     }
 }
 
-SCENARIO("FixedKdTree3::insert returns the count of points written", "[fixed_kd_tree][insert]") {
+SCENARIO("KDTree3::insert returns the count of points written", "[kd_tree][insert]") {
     GIVEN("a tree of capacity 8 and a single-point batch") {
-        FixedKdTree<3> tree{{.capacity = 8, .resolution = 0.01f}};
-        using P = FixedKdTree<3>::Point;
+        KDTree<3> tree{{.capacity = 8, .resolution = 0.01f}};
+        using P = KDTree<3>::Point;
         const std::vector<P> batch{P{1.0f, 2.0f, 3.0f}};
         WHEN("insert is called") {
             const auto inserted = tree.insert(batch);
@@ -82,11 +82,11 @@ SCENARIO("FixedKdTree3::insert returns the count of points written", "[fixed_kd_
     }
 }
 
-SCENARIO("FixedKdTree3::insert collapses intra-batch duplicates within resolution",
-         "[fixed_kd_tree][insert][dedup]") {
+SCENARIO("KDTree3::insert collapses intra-batch duplicates within resolution",
+         "[kd_tree][insert][dedup]") {
     GIVEN("an empty tree with resolution=0.5") {
-        FixedKdTree<3> tree{{.capacity = 8, .resolution = 0.5f}};
-        using P = FixedKdTree<3>::Point;
+        KDTree<3> tree{{.capacity = 8, .resolution = 0.5f}};
+        using P = KDTree<3>::Point;
         const std::vector<P> batch{P{0.0f, 0.0f, 0.0f}, P{0.1f, 0.0f, 0.0f}};
         WHEN("the two near-duplicate points are inserted in one batch") {
             const auto inserted = tree.insert(batch);
@@ -98,10 +98,10 @@ SCENARIO("FixedKdTree3::insert collapses intra-batch duplicates within resolutio
     }
 }
 
-SCENARIO("FixedKdTree3::insert dedup is first-seen-wins across input reorderings",
-         "[fixed_kd_tree][insert][dedup]") {
+SCENARIO("KDTree3::insert dedup is first-seen-wins across input reorderings",
+         "[kd_tree][insert][dedup]") {
     GIVEN("two trees with identical Config(resolution=0.5)") {
-        using Tree = FixedKdTree<3>;
+        using Tree = KDTree<3>;
         using P    = Tree::Point;
         Tree::Config cfg{.capacity = 8, .resolution = 0.5f};
         Tree         tree_a{cfg};
@@ -123,11 +123,11 @@ SCENARIO("FixedKdTree3::insert dedup is first-seen-wins across input reorderings
     }
 }
 
-SCENARIO("FixedKdTree3::insert rejects points within resolution of the live tree",
-         "[fixed_kd_tree][insert][dedup]") {
+SCENARIO("KDTree3::insert rejects points within resolution of the live tree",
+         "[kd_tree][insert][dedup]") {
     GIVEN("a tree with {0,0,0} already inserted at resolution=0.5") {
-        FixedKdTree<3> tree{{.capacity = 8, .resolution = 0.5f}};
-        using P = FixedKdTree<3>::Point;
+        KDTree<3> tree{{.capacity = 8, .resolution = 0.5f}};
+        using P = KDTree<3>::Point;
         REQUIRE(tree.insert(std::vector<P>{P{0.0f, 0.0f, 0.0f}}) == 1);
         WHEN("a near-duplicate {0.1,0,0} is inserted in a later batch") {
             const auto inserted = tree.insert(std::vector<P>{P{0.1f, 0.0f, 0.0f}});
@@ -139,11 +139,11 @@ SCENARIO("FixedKdTree3::insert rejects points within resolution of the live tree
     }
 }
 
-SCENARIO("FixedKdTree3::insert return count reflects accepted-after-dedup",
-         "[fixed_kd_tree][insert][dedup]") {
+SCENARIO("KDTree3::insert return count reflects accepted-after-dedup",
+         "[kd_tree][insert][dedup]") {
     GIVEN("an empty tree at resolution=0.5 and a 6-point batch with 3 intra-cluster duplicates") {
-        FixedKdTree<3> tree{{.capacity = 16, .resolution = 0.5f}};
-        using P = FixedKdTree<3>::Point;
+        KDTree<3> tree{{.capacity = 16, .resolution = 0.5f}};
+        using P = KDTree<3>::Point;
         const std::vector<P> batch{
             P{0.0f, 0.0f, 0.0f},
             P{0.1f, 0.0f, 0.0f},  // dup of point 0
@@ -162,11 +162,11 @@ SCENARIO("FixedKdTree3::insert return count reflects accepted-after-dedup",
     }
 }
 
-SCENARIO("FixedKdTree3::insert keeps points at exactly resolution distance",
-         "[fixed_kd_tree][insert][dedup]") {
+SCENARIO("KDTree3::insert keeps points at exactly resolution distance",
+         "[kd_tree][insert][dedup]") {
     GIVEN("an empty tree with resolution=0.5") {
-        FixedKdTree<3> tree{{.capacity = 8, .resolution = 0.5f}};
-        using P = FixedKdTree<3>::Point;
+        KDTree<3> tree{{.capacity = 8, .resolution = 0.5f}};
+        using P = KDTree<3>::Point;
         const std::vector<P> batch{P{0.0f, 0.0f, 0.0f}, P{0.5f, 0.0f, 0.0f}};
         WHEN("the boundary pair is inserted") {
             const auto inserted = tree.insert(batch);
@@ -178,10 +178,10 @@ SCENARIO("FixedKdTree3::insert keeps points at exactly resolution distance",
     }
 }
 
-SCENARIO("FixedKdTree3::knn_search agrees with a brute-force oracle on 1000 points",
-         "[fixed_kd_tree][search][knn][smoke]") {
+SCENARIO("KDTree3::knn_search agrees with a brute-force oracle on 1000 points",
+         "[kd_tree][search][knn][smoke]") {
     GIVEN("a tree of capacity 1000 populated with uniform random D=3 points") {
-        using Tree = FixedKdTree<3>;
+        using Tree = KDTree<3>;
         using P    = Tree::Point;
 
         constexpr std::size_t N = 1000;
@@ -229,10 +229,10 @@ SCENARIO("FixedKdTree3::knn_search agrees with a brute-force oracle on 1000 poin
     }
 }
 
-SCENARIO("FixedKdTree3::knn_search returns empty when k == 0", "[fixed_kd_tree][search][knn]") {
+SCENARIO("KDTree3::knn_search returns empty when k == 0", "[kd_tree][search][knn]") {
     GIVEN("a tree containing one point") {
-        FixedKdTree<3> tree{{.capacity = 4, .resolution = 0.01f}};
-        using P = FixedKdTree<3>::Point;
+        KDTree<3> tree{{.capacity = 4, .resolution = 0.01f}};
+        using P = KDTree<3>::Point;
         const std::vector<P> one{P{0, 0, 0}};
         (void)tree.insert(one);
 
@@ -244,10 +244,10 @@ SCENARIO("FixedKdTree3::knn_search returns empty when k == 0", "[fixed_kd_tree][
     }
 }
 
-SCENARIO("FixedKdTree3 silently evicts oldest points when capacity is exceeded",
-         "[fixed_kd_tree][insert][fifo]") {
+SCENARIO("KDTree3 silently evicts oldest points when capacity is exceeded",
+         "[kd_tree][insert][fifo]") {
     GIVEN("a tree of capacity 10 and 15 distinct random D=3 points") {
-        using Tree = FixedKdTree<3>;
+        using Tree = KDTree<3>;
         using P    = Tree::Point;
 
         constexpr std::size_t Cap = 10;
@@ -283,10 +283,10 @@ SCENARIO("FixedKdTree3 silently evicts oldest points when capacity is exceeded",
     }
 }
 
-SCENARIO("FixedKdTree3::knn_search on an empty tree returns empty", "[fixed_kd_tree][search][knn]") {
+SCENARIO("KDTree3::knn_search on an empty tree returns empty", "[kd_tree][search][knn]") {
     GIVEN("a freshly constructed tree with no inserts") {
-        FixedKdTree<3> tree{{.capacity = 4, .resolution = 0.01f}};
-        using P = FixedKdTree<3>::Point;
+        KDTree<3> tree{{.capacity = 4, .resolution = 0.01f}};
+        using P = KDTree<3>::Point;
         WHEN("knn_search is called") {
             const auto result = tree.knn_search(P{0, 0, 0}, 3);
             THEN("the result is empty") {
@@ -296,9 +296,9 @@ SCENARIO("FixedKdTree3::knn_search on an empty tree returns empty", "[fixed_kd_t
     }
 }
 
-SCENARIO("FixedKdTree3::radius_search returns all points within radius", "[fixed_kd_tree][search][radius]") {
+SCENARIO("KDTree3::radius_search returns all points within radius", "[kd_tree][search][radius]") {
     GIVEN("a tree of capacity 1000 populated with uniform random D=3 points") {
-        using Tree = FixedKdTree<3>;
+        using Tree = KDTree<3>;
         using P    = Tree::Point;
 
         constexpr std::size_t N = 1000;
@@ -347,11 +347,11 @@ SCENARIO("FixedKdTree3::radius_search returns all points within radius", "[fixed
     }
 }
 
-SCENARIO("FixedKdTree3::radius_search returns empty when no points within radius",
-         "[fixed_kd_tree][search][radius]") {
+SCENARIO("KDTree3::radius_search returns empty when no points within radius",
+         "[kd_tree][search][radius]") {
     GIVEN("a small tree with a few clustered points") {
-        FixedKdTree<3> tree{{.capacity = 8, .resolution = 1e-9f}};
-        using P = FixedKdTree<3>::Point;
+        KDTree<3> tree{{.capacity = 8, .resolution = 1e-9f}};
+        using P = KDTree<3>::Point;
         const std::vector<P> batch{P{0, 0, 0}, P{1, 0, 0}, P{0, 1, 0}};
         (void)tree.insert(batch);
 
@@ -364,10 +364,10 @@ SCENARIO("FixedKdTree3::radius_search returns empty when no points within radius
     }
 }
 
-SCENARIO("FixedKdTree3::hybrid_search returns at most k points within radius",
-         "[fixed_kd_tree][search][hybrid]") {
+SCENARIO("KDTree3::hybrid_search returns at most k points within radius",
+         "[kd_tree][search][hybrid]") {
     GIVEN("a tree of capacity 1000 populated with uniform random D=3 points") {
-        using Tree = FixedKdTree<3>;
+        using Tree = KDTree<3>;
         using P    = Tree::Point;
 
         constexpr std::size_t N = 1000;
@@ -424,9 +424,9 @@ SCENARIO("FixedKdTree3::hybrid_search returns at most k points within radius",
     }
 }
 
-SCENARIO("FixedKdTree3::hybrid_search matches knn when k bites first", "[fixed_kd_tree][search][hybrid]") {
+SCENARIO("KDTree3::hybrid_search matches knn when k bites first", "[kd_tree][search][hybrid]") {
     GIVEN("a populated tree, a huge radius, and a small k") {
-        using Tree = FixedKdTree<3>;
+        using Tree = KDTree<3>;
         using P    = Tree::Point;
 
         constexpr std::size_t N = 256;
@@ -459,10 +459,10 @@ SCENARIO("FixedKdTree3::hybrid_search matches knn when k bites first", "[fixed_k
     }
 }
 
-SCENARIO("FixedKdTree3::hybrid_search matches radius_search when radius bites first",
-         "[fixed_kd_tree][search][hybrid]") {
+SCENARIO("KDTree3::hybrid_search matches radius_search when radius bites first",
+         "[kd_tree][search][hybrid]") {
     GIVEN("a populated tree, a huge k, and a small radius") {
-        using Tree = FixedKdTree<3>;
+        using Tree = KDTree<3>;
         using P    = Tree::Point;
 
         constexpr std::size_t N = 256;
@@ -494,10 +494,10 @@ SCENARIO("FixedKdTree3::hybrid_search matches radius_search when radius bites fi
     }
 }
 
-SCENARIO("FixedKdTree3::hybrid_search returns empty when k == 0", "[fixed_kd_tree][search][hybrid]") {
+SCENARIO("KDTree3::hybrid_search returns empty when k == 0", "[kd_tree][search][hybrid]") {
     GIVEN("a tree containing one point") {
-        FixedKdTree<3> tree{{.capacity = 4, .resolution = 0.01f}};
-        using P = FixedKdTree<3>::Point;
+        KDTree<3> tree{{.capacity = 4, .resolution = 0.01f}};
+        using P = KDTree<3>::Point;
         const std::vector<P> one{P{0, 0, 0}};
         (void)tree.insert(one);
 
@@ -509,9 +509,9 @@ SCENARIO("FixedKdTree3::hybrid_search returns empty when k == 0", "[fixed_kd_tre
     }
 }
 
-SCENARIO("FixedKdTree3::remove drops matching points from subsequent queries", "[fixed_kd_tree][remove]") {
+SCENARIO("KDTree3::remove drops matching points from subsequent queries", "[kd_tree][remove]") {
     GIVEN("a tree of capacity 100 with 100 well-separated random points") {
-        using Tree = FixedKdTree<3>;
+        using Tree = KDTree<3>;
         using P    = Tree::Point;
 
         constexpr std::size_t N          = 100;
@@ -543,10 +543,10 @@ SCENARIO("FixedKdTree3::remove drops matching points from subsequent queries", "
     }
 }
 
-SCENARIO("FixedKdTree3::remove returns 0 when no points match", "[fixed_kd_tree][remove]") {
+SCENARIO("KDTree3::remove returns 0 when no points match", "[kd_tree][remove]") {
     GIVEN("a tree containing three clustered points") {
-        FixedKdTree<3> tree{{.capacity = 8, .resolution = 0.01f}};
-        using P = FixedKdTree<3>::Point;
+        KDTree<3> tree{{.capacity = 8, .resolution = 0.01f}};
+        using P = KDTree<3>::Point;
         const std::vector<P> batch{P{0, 0, 0}, P{1, 0, 0}, P{0, 1, 0}};
         REQUIRE(tree.insert(batch) == 3);
 
@@ -561,10 +561,10 @@ SCENARIO("FixedKdTree3::remove returns 0 when no points match", "[fixed_kd_tree]
     }
 }
 
-SCENARIO("FixedKdTree3::remove on an empty tree returns 0", "[fixed_kd_tree][remove]") {
+SCENARIO("KDTree3::remove on an empty tree returns 0", "[kd_tree][remove]") {
     GIVEN("a freshly constructed tree with no inserts") {
-        FixedKdTree<3> tree{{.capacity = 4, .resolution = 0.01f}};
-        using P = FixedKdTree<3>::Point;
+        KDTree<3> tree{{.capacity = 4, .resolution = 0.01f}};
+        using P = KDTree<3>::Point;
         WHEN("remove is called with a single query") {
             const std::vector<P> queries{P{0, 0, 0}};
             const auto           cleared = tree.remove(queries);
@@ -576,9 +576,9 @@ SCENARIO("FixedKdTree3::remove on an empty tree returns 0", "[fixed_kd_tree][rem
     }
 }
 
-SCENARIO("FixedKdTree3::remove count matches the size delta", "[fixed_kd_tree][remove]") {
+SCENARIO("KDTree3::remove count matches the size delta", "[kd_tree][remove]") {
     GIVEN("a tree of capacity 200 with 200 well-separated random points") {
-        using Tree = FixedKdTree<3>;
+        using Tree = KDTree<3>;
         using P    = Tree::Point;
 
         constexpr std::size_t N          = 200;
@@ -609,10 +609,10 @@ SCENARIO("FixedKdTree3::remove count matches the size delta", "[fixed_kd_tree][r
     }
 }
 
-SCENARIO("FixedKdTree3::rebuild_all after mutations agrees with the oracle on the live set",
-         "[fixed_kd_tree][rebuild]") {
+SCENARIO("KDTree3::rebuild_all after mutations agrees with the oracle on the live set",
+         "[kd_tree][rebuild]") {
     GIVEN("a tree of capacity 1000 with 1000 random points, then a quarter removed") {
-        using Tree = FixedKdTree<3>;
+        using Tree = KDTree<3>;
         using P    = Tree::Point;
 
         constexpr std::size_t N          = 1000;
@@ -678,11 +678,11 @@ SCENARIO("FixedKdTree3::rebuild_all after mutations agrees with the oracle on th
     }
 }
 
-SCENARIO("FixedKdTree3::rebuild_all on an empty tree leaves it empty and queryable",
-         "[fixed_kd_tree][rebuild]") {
+SCENARIO("KDTree3::rebuild_all on an empty tree leaves it empty and queryable",
+         "[kd_tree][rebuild]") {
     GIVEN("a freshly constructed empty tree") {
-        FixedKdTree<3> tree{{.capacity = 8, .resolution = 0.01f}};
-        using P = FixedKdTree<3>::Point;
+        KDTree<3> tree{{.capacity = 8, .resolution = 0.01f}};
+        using P = KDTree<3>::Point;
         WHEN("rebuild_all is invoked") {
             tree.rebuild_all();
             THEN("size stays zero and knn_search on the empty tree returns empty") {
@@ -693,10 +693,10 @@ SCENARIO("FixedKdTree3::rebuild_all on an empty tree leaves it empty and queryab
     }
 }
 
-SCENARIO("FixedKdTree3 stays correct under axis-sorted (worst-case) input",
-         "[fixed_kd_tree][insert][balance]") {
+SCENARIO("KDTree3 stays correct under axis-sorted (worst-case) input",
+         "[kd_tree][insert][balance]") {
     GIVEN("a tree of capacity 1000 fed 1000 points sorted along axis 0") {
-        using Tree = FixedKdTree<3>;
+        using Tree = KDTree<3>;
         using P    = Tree::Point;
 
         constexpr std::size_t N          = 1000;
@@ -740,10 +740,10 @@ SCENARIO("FixedKdTree3 stays correct under axis-sorted (worst-case) input",
     }
 }
 
-SCENARIO("FixedKdTree3::remove past the tombstone threshold triggers a partial rebuild silently",
-         "[fixed_kd_tree][remove][rebuild]") {
+SCENARIO("KDTree3::remove past the tombstone threshold triggers a partial rebuild silently",
+         "[kd_tree][remove][rebuild]") {
     GIVEN("a tree of capacity 400 populated with 400 well-separated random points") {
-        using Tree = FixedKdTree<3>;
+        using Tree = KDTree<3>;
         using P    = Tree::Point;
 
         constexpr std::size_t N          = 400;
@@ -804,10 +804,10 @@ SCENARIO("FixedKdTree3::remove past the tombstone threshold triggers a partial r
     }
 }
 
-SCENARIO("FixedKdTree3::knn_search after remove never surfaces tombstoned coordinates",
-         "[fixed_kd_tree][remove][gen]") {
+SCENARIO("KDTree3::knn_search after remove never surfaces tombstoned coordinates",
+         "[kd_tree][remove][gen]") {
     GIVEN("a tree of capacity 200 with 200 well-separated points and a sparse removal") {
-        using Tree = FixedKdTree<3>;
+        using Tree = KDTree<3>;
         using P    = Tree::Point;
 
         constexpr std::size_t N          = 200;
@@ -871,10 +871,10 @@ SCENARIO("FixedKdTree3::knn_search after remove never surfaces tombstoned coordi
     }
 }
 
-SCENARIO("FixedKdTree3 FIFO eviction never surfaces evicted coordinates via stale leaf entries",
-         "[fixed_kd_tree][insert][fifo][gen]") {
+SCENARIO("KDTree3 FIFO eviction never surfaces evicted coordinates via stale leaf entries",
+         "[kd_tree][insert][fifo][gen]") {
     GIVEN("a tree of capacity 10 fed 15 distinct random points") {
-        using Tree = FixedKdTree<3>;
+        using Tree = KDTree<3>;
         using P    = Tree::Point;
 
         constexpr std::size_t Cap = 10;
@@ -919,9 +919,9 @@ SCENARIO("FixedKdTree3 FIFO eviction never surfaces evicted coordinates via stal
     }
 }
 
-SCENARIO("FixedKdTree3::insert after remove rebuilds the tree correctly", "[fixed_kd_tree][remove][insert]") {
+SCENARIO("KDTree3::insert after remove rebuilds the tree correctly", "[kd_tree][remove][insert]") {
     GIVEN("a tree of capacity 300 populated with 100 well-separated random points") {
-        using Tree = FixedKdTree<3>;
+        using Tree = KDTree<3>;
         using P    = Tree::Point;
 
         constexpr std::size_t N          = 100;
@@ -992,4 +992,4 @@ SCENARIO("FixedKdTree3::insert after remove rebuilds the tree correctly", "[fixe
     }
 }
 
-} // namespace pkd_tree
+} // namespace topiary

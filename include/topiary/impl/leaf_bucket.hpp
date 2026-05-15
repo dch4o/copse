@@ -4,7 +4,7 @@
 #include <span>
 #include <vector>
 
-namespace pkd_tree::internal {
+namespace topiary::internal {
 
 /// @brief Generation-stamped index stored in each leaf bucket slot.
 /// Queries skip an entry when `gen != PointStore::generation(index)`.
@@ -41,4 +41,4 @@ private:
     std::vector<BucketEntry> data_;
 };
 
-} // namespace pkd_tree::internal
+} // namespace topiary::internal
