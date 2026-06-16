@@ -13,6 +13,7 @@ scapegoat-style partial rebuild periodically prunes the tree back into balance.
 - FIFO eviction when full; batched `insert` / `remove`.
 - Resolution-based dedup against the live set.
 - `knn_search`, `radius_search`, `hybrid_search` (kNN within radius).
+- Spatial bulk deletes: `box_delete` (axis-aligned boxes) and `radius_crop` (keep only a local ball).
 - Scapegoat-style partial rebuild for amortized balance under streaming load.
 
 ## Usage
@@ -27,6 +28,9 @@ copse::KDTree3 tree({
 
 tree.insert(points);
 auto neighbors = tree.knn_search(query, /*k=*/5);
+
+tree.box_delete({copse::BBox<3>{lo, hi}}); // clear an axis-aligned box
+tree.radius_crop(center, /*r=*/2.0f);      // keep only points within r of center
 ```
 
 ## Build
@@ -37,10 +41,11 @@ cmake --build build -j
 ctest --test-dir build --output-on-failure
 ```
 
-CMake options (all default `ON` except clang-tidy):
-- `COPSE_BUILD_TESTS`
-- `COPSE_BUILD_BENCHMARKS`
-- `COPSE_ENABLE_CLANG_TIDY`
+CMake options:
+- `COPSE_BUILD_TESTS` — default `ON`
+- `COPSE_BUILD_BENCHMARKS` — default `ON`
+- `COPSE_BUILD_DEMOS` — default `OFF` (pulls Polyscope; needs GL/X11)
+- `COPSE_ENABLE_CLANG_TIDY` — default `OFF`
 
 Requires C++20 and Eigen3.
 
