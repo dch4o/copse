@@ -1,16 +1,16 @@
 #pragma once
 
-#include "topiary/impl/leaf_bucket.hpp"
-#include "topiary/impl/point_store.hpp"
-#include "topiary/impl/point_traits.hpp"
-#include "topiary/impl/tree_node.hpp"
-#include "topiary/kd_tree.hpp"
+#include "copse/impl/leaf_bucket.hpp"
+#include "copse/impl/point_store.hpp"
+#include "copse/impl/point_traits.hpp"
+#include "copse/impl/tree_node.hpp"
+#include "copse/kd_tree.hpp"
 
 #include <cstddef>
 #include <cstdint>
 #include <vector>
 
-namespace topiary::internal {
+namespace copse::internal {
 
 /// @brief Single bounded traversal kernel shared by knn / radius / hybrid searches.
 /// @tparam Dim Point dimensionality.
@@ -18,7 +18,7 @@ template <int Dim>
 class SearchKernel {
 public:
     using Point    = detail::PointType<Dim>;
-    using Neighbor = typename topiary::KDTree<Dim>::Neighbor;
+    using Neighbor = typename copse::KDTree<Dim>::Neighbor;
 
     /// @brief Construct a kernel bound to the supplied storage.
     /// @param nodes Node pool to traverse.
@@ -58,4 +58,4 @@ private:
     const PointStore<Dim>&       points_;
 };
 
-} // namespace topiary::internal
+} // namespace copse::internal

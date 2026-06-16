@@ -53,9 +53,9 @@ if(NOT ikd_tree_POPULATED)
     FetchContent_Populate(ikd_tree)
 endif()
 
-set(TOPIARY_IKD_SOURCE "${ikd_tree_SOURCE_DIR}/ikd-Tree/ikd_Tree.cpp")
-set(TOPIARY_IKD_INCLUDE_DIR "${ikd_tree_SOURCE_DIR}/ikd-Tree")
-set(TOPIARY_IKD_SHIM_DIR "${CMAKE_CURRENT_LIST_DIR}/../benchmarks/ikd_shim")
+set(COPSE_IKD_SOURCE "${ikd_tree_SOURCE_DIR}/ikd-Tree/ikd_Tree.cpp")
+set(COPSE_IKD_INCLUDE_DIR "${ikd_tree_SOURCE_DIR}/ikd-Tree")
+set(COPSE_IKD_SHIM_DIR "${CMAKE_CURRENT_LIST_DIR}/../benchmarks/ikd_shim")
 
 # Each mode is an OBJECT library over the upstream `.cpp` plus its facade adapter,
 # both compiled with the per-mode `-include` shim (rebuild-gate macro + `KD_TREE`
@@ -63,23 +63,23 @@ set(TOPIARY_IKD_SHIM_DIR "${CMAKE_CURRENT_LIST_DIR}/../benchmarks/ikd_shim")
 # to our `<Eigen/Core>` shim. The rename makes the two modes' symbols distinct so
 # they link into one binary; the facade keeps the upstream header out of the
 # harness TU.
-function(topiary_add_ikd_object target shim adapter)
+function(copse_add_ikd_object target shim adapter)
     add_library(${target} OBJECT
-        "${TOPIARY_IKD_SOURCE}"
-        "${TOPIARY_IKD_SHIM_DIR}/${adapter}"
+        "${COPSE_IKD_SOURCE}"
+        "${COPSE_IKD_SHIM_DIR}/${adapter}"
     )
     target_include_directories(${target} PUBLIC
-        "${TOPIARY_IKD_SHIM_DIR}"
-        "${TOPIARY_IKD_INCLUDE_DIR}"
+        "${COPSE_IKD_SHIM_DIR}"
+        "${COPSE_IKD_INCLUDE_DIR}"
     )
     target_link_libraries(${target} PUBLIC Eigen3::Eigen Threads::Threads)
     target_compile_options(${target} PRIVATE
         -pthread
-        -include "${TOPIARY_IKD_SHIM_DIR}/${shim}"
+        -include "${COPSE_IKD_SHIM_DIR}/${shim}"
     )
     # Upstream third-party source: no -Werror, no clang-tidy.
     set_target_properties(${target} PROPERTIES CXX_CLANG_TIDY "")
 endfunction()
 
-topiary_add_ikd_object(ikd_tree_bg_off ikd_bg_off.h ikd_adapter_bg_off.cpp) # mode (b): INT_MAX, BG off
-topiary_add_ikd_object(ikd_tree_bg_on  ikd_bg_on.h  ikd_adapter_bg_on.cpp)  # mode (c): 1500, BG on
+copse_add_ikd_object(ikd_tree_bg_off ikd_bg_off.h ikd_adapter_bg_off.cpp) # mode (b): INT_MAX, BG off
+copse_add_ikd_object(ikd_tree_bg_on  ikd_bg_on.h  ikd_adapter_bg_on.cpp)  # mode (c): 1500, BG on

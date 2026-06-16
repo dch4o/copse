@@ -1,18 +1,18 @@
 #pragma once
 
-#include "topiary/impl/leaf_bucket.hpp"
-#include "topiary/impl/point_store.hpp"
-#include "topiary/impl/search_kernel.hpp"
-#include "topiary/impl/tree_builder.hpp"
-#include "topiary/impl/tree_node.hpp"
-#include "topiary/kd_tree.hpp"
+#include "copse/impl/leaf_bucket.hpp"
+#include "copse/impl/point_store.hpp"
+#include "copse/impl/search_kernel.hpp"
+#include "copse/impl/tree_builder.hpp"
+#include "copse/impl/tree_node.hpp"
+#include "copse/kd_tree.hpp"
 
 #include <cstddef>
 #include <cstdint>
 #include <span>
 #include <vector>
 
-namespace topiary::internal {
+namespace copse::internal {
 
 /// @brief PIMPL body of KDTree<Dim>; owns all storage and orchestrates the helpers.
 /// Single-writer; not safe to call mutators concurrently with any other method.
@@ -20,46 +20,46 @@ namespace topiary::internal {
 template <int Dim>
 class KDTreeImpl {
 public:
-    using Config   = typename topiary::KDTree<Dim>::Config;
-    using Point    = typename topiary::KDTree<Dim>::Point;
-    using Neighbor = typename topiary::KDTree<Dim>::Neighbor;
+    using Config   = typename copse::KDTree<Dim>::Config;
+    using Point    = typename copse::KDTree<Dim>::Point;
+    using Neighbor = typename copse::KDTree<Dim>::Neighbor;
 
     /// @brief Construct with validated configuration.
     /// @param cfg Construction-time configuration.
     /// @throws std::invalid_argument On any Config precondition violation.
     explicit KDTreeImpl(Config cfg);
 
-    /// @copydoc topiary::KDTree::insert
+    /// @copydoc copse::KDTree::insert
     std::size_t insert(std::span<const Point> points);
 
-    /// @copydoc topiary::KDTree::remove
+    /// @copydoc copse::KDTree::remove
     std::size_t remove(std::span<const Point> queries);
 
-    /// @copydoc topiary::KDTree::knn_search
+    /// @copydoc copse::KDTree::knn_search
     std::vector<Neighbor> knn_search(const Point& query, std::size_t k) const;
 
-    /// @copydoc topiary::KDTree::radius_search
+    /// @copydoc copse::KDTree::radius_search
     std::vector<Neighbor> radius_search(const Point& query, float radius) const;
 
-    /// @copydoc topiary::KDTree::hybrid_search
+    /// @copydoc copse::KDTree::hybrid_search
     std::vector<Neighbor> hybrid_search(const Point& query, std::size_t k, float radius) const;
 
-    /// @copydoc topiary::KDTree::delete_box
+    /// @copydoc copse::KDTree::delete_box
     std::size_t delete_box(const BBox<Dim>& box);
 
-    /// @copydoc topiary::KDTree::delete_boxes
+    /// @copydoc copse::KDTree::delete_boxes
     std::size_t delete_boxes(std::span<const BBox<Dim>> boxes);
 
-    /// @copydoc topiary::KDTree::delete_outside_radius
+    /// @copydoc copse::KDTree::delete_outside_radius
     std::size_t delete_outside_radius(const Point& center, float r);
 
-    /// @copydoc topiary::KDTree::size
+    /// @copydoc copse::KDTree::size
     std::size_t size() const noexcept;
 
-    /// @copydoc topiary::KDTree::capacity
+    /// @copydoc copse::KDTree::capacity
     std::size_t capacity() const noexcept;
 
-    /// @copydoc topiary::KDTree::rebuild_all
+    /// @copydoc copse::KDTree::rebuild_all
     void rebuild_all();
 
 private:
@@ -75,4 +75,4 @@ private:
     SearchKernel<Dim>          kernel_;
 };
 
-} // namespace topiary::internal
+} // namespace copse::internal

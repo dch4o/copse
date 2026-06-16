@@ -1,11 +1,11 @@
-#include "topiary/impl/point_store.hpp"
+#include "copse/impl/point_store.hpp"
 
 #include <cstdint>
 #include <numeric>
 #include <stdexcept>
 #include <utility>
 
-namespace topiary::internal {
+namespace copse::internal {
 
 namespace {
 /// Sentinel marking an unused `buf_pos_` slot.
@@ -104,4 +104,4 @@ template class PointStore<2>;
 template class PointStore<3>;
 template class PointStore<4>;
 
-} // namespace topiary::internal
+} // namespace copse::internal

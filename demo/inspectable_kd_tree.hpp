@@ -1,12 +1,12 @@
 #pragma once
 
-#include "topiary/bbox.hpp"
-#include "topiary/impl/leaf_bucket.hpp"
-#include "topiary/impl/point_store.hpp"
-#include "topiary/impl/search_kernel.hpp"
-#include "topiary/impl/tree_builder.hpp"
-#include "topiary/impl/tree_node.hpp"
-#include "topiary/kd_tree.hpp"
+#include "copse/bbox.hpp"
+#include "copse/impl/leaf_bucket.hpp"
+#include "copse/impl/point_store.hpp"
+#include "copse/impl/search_kernel.hpp"
+#include "copse/impl/tree_builder.hpp"
+#include "copse/impl/tree_node.hpp"
+#include "copse/kd_tree.hpp"
 
 #include <cstdint>
 #include <limits>
@@ -18,15 +18,15 @@ namespace demo {
 /// @brief Reassembles the kd-tree's internal building blocks (PointStore + LeafBucket
 /// + TreeBuilder + SearchKernel + the node/cell pools) and mirrors KDTreeImpl's
 /// orchestration, but keeps the node pool, leaf cells, and points fully readable
-/// for visualization. The library is used as-is; nothing in topiary changes.
+/// for visualization. The library is used as-is; nothing in copse changes.
 /// @tparam Dim Point dimensionality.
 template <int Dim>
 class InspectableKdTree {
 public:
-    using Point    = typename topiary::KDTree<Dim>::Point;
-    using Config   = typename topiary::KDTree<Dim>::Config;
-    using Neighbor = typename topiary::KDTree<Dim>::Neighbor;
-    using TreeNode = topiary::internal::TreeNode;
+    using Point    = typename copse::KDTree<Dim>::Point;
+    using Config   = typename copse::KDTree<Dim>::Config;
+    using Neighbor = typename copse::KDTree<Dim>::Neighbor;
+    using TreeNode = copse::internal::TreeNode;
 
     /// @brief Construct an inspectable tree mirroring KDTreeImpl's storage and rebuild knobs.
     /// @param cfg Construction-time configuration.
@@ -76,7 +76,7 @@ public:
     /// @brief Release every live point inside the axis-aligned `box`.
     /// @param box Axis-aligned box to clear.
     /// @return Number of live points cleared.
-    std::size_t delete_box(const topiary::BBox<Dim>& box) {
+    std::size_t delete_box(const copse::BBox<Dim>& box) {
         const std::size_t cleared = builder_.delete_box(root_, box);
         if (cleared > 0) {
             builder_.maybe_partial_rebuild(root_);
@@ -151,30 +151,30 @@ public:
 
     /// @brief Read-only view of the per-leaf bounding boxes.
     /// @return The leaf bounding-box pool.
-    const std::vector<topiary::BBox<Dim>>& leaf_bboxes() const { return leaf_bboxes_; }
+    const std::vector<copse::BBox<Dim>>& leaf_bboxes() const { return leaf_bboxes_; }
 
     /// @brief Whole-tree bounding box.
     /// @return The root bounding box.
-    const topiary::BBox<Dim>& root_bbox() const { return root_bbox_; }
+    const copse::BBox<Dim>& root_bbox() const { return root_bbox_; }
 
     /// @brief Read-only view of the point store.
     /// @return The point store.
-    const topiary::internal::PointStore<Dim>& points() const { return points_; }
+    const copse::internal::PointStore<Dim>& points() const { return points_; }
 
     /// @brief Read-only view of the leaf bucket pool.
     /// @return The leaf bucket pool.
-    const topiary::internal::LeafBucket& leaf_buckets() const { return leaf_buckets_; }
+    const copse::internal::LeafBucket& leaf_buckets() const { return leaf_buckets_; }
 
 private:
     Config                               cfg_;
-    topiary::internal::PointStore<Dim>   points_;
-    topiary::internal::LeafBucket        leaf_buckets_;
+    copse::internal::PointStore<Dim>   points_;
+    copse::internal::LeafBucket        leaf_buckets_;
     std::vector<TreeNode>                nodes_;
-    std::vector<topiary::BBox<Dim>>      leaf_bboxes_;
-    topiary::BBox<Dim>                   root_bbox_;
+    std::vector<copse::BBox<Dim>>      leaf_bboxes_;
+    copse::BBox<Dim>                   root_bbox_;
     std::vector<std::uint32_t>           work_indices_;
-    topiary::internal::TreeBuilder<Dim>  builder_;
-    topiary::internal::SearchKernel<Dim> kernel_;
+    copse::internal::TreeBuilder<Dim>  builder_;
+    copse::internal::SearchKernel<Dim> kernel_;
     std::uint32_t                        root_ = TreeNode::INVALID;
 };
 

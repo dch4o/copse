@@ -2,7 +2,7 @@
 // steady-state cost (insert that may trigger a scapegoat rebuild) against
 // the explicit full rebuild_all() reference.
 
-#include "topiary/topiary.hpp"
+#include "copse/copse.hpp"
 
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -12,7 +12,7 @@
 #include <random>
 #include <vector>
 
-namespace topiary {
+namespace copse {
 
 namespace {
 
@@ -214,4 +214,4 @@ TEST_CASE("Bench: tombstone-triggered partial rebuild, 1M points", "[!benchmark]
     };
 }
 
-} // namespace topiary
+} // namespace copse

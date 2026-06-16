@@ -1,15 +1,15 @@
 #pragma once
 
-#include "topiary/impl/leaf_bucket.hpp"
-#include "topiary/impl/point_store.hpp"
-#include "topiary/impl/tree_node.hpp"
+#include "copse/impl/leaf_bucket.hpp"
+#include "copse/impl/point_store.hpp"
+#include "copse/impl/tree_node.hpp"
 
 #include <cstddef>
 #include <cstdint>
 #include <span>
 #include <vector>
 
-namespace topiary::internal {
+namespace copse::internal {
 
 /// @brief Builds and partially-rebuilds the kd-tree topology over an externally-owned node pool.
 /// @tparam Dim Point dimensionality.
@@ -87,4 +87,4 @@ private:
     std::vector<std::uint32_t> modified_nodes_;
 };
 
-} // namespace topiary::internal
+} // namespace copse::internal

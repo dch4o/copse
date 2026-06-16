@@ -1,11 +1,11 @@
 // Demo 1 — public-API client (3D, Polyscope).
 //
-// Uses only topiary::KDTree<3>. The live cloud is enumerated through the public
+// Uses only copse::KDTree<3>. The live cloud is enumerated through the public
 // API (a radius search wide enough to cover the extent), and insert / delete /
 // query are driven from the panel. Shows the index from a user's view — no
 // internal structure. Run with `dump` for a headless text snapshot.
 
-#include "topiary/topiary.hpp"
+#include "copse/copse.hpp"
 
 #include <array>
 #include <cstdio>
@@ -19,7 +19,7 @@
 
 namespace {
 
-using KdTree = topiary::KDTree<3>;
+using KdTree = copse::KDTree<3>;
 using Point  = KdTree::Point;
 using Vec3   = std::array<float, 3>;
 
@@ -147,7 +147,7 @@ void user_callback() {
         ImGui::SliderFloat3("box min", box_min, 0.0f, kExtent);
         ImGui::SliderFloat3("box max", box_max, 0.0f, kExtent);
         if (ImGui::Button("delete box")) {
-            g_tree->delete_box(topiary::BBox<3>{Point{box_min[0], box_min[1], box_min[2]},
+            g_tree->delete_box(copse::BBox<3>{Point{box_min[0], box_min[1], box_min[2]},
                                                    Point{box_max[0], box_max[1], box_max[2]}});
             refresh();
         }

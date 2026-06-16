@@ -1,6 +1,6 @@
-#include "topiary/impl/leaf_bucket.hpp"
+#include "copse/impl/leaf_bucket.hpp"
 
-namespace topiary::internal {
+namespace copse::internal {
 
 static_assert(sizeof(BucketEntry) == 8, "BucketEntry must stay 8 B for bucket footprint accounting");
 
@@ -34,4 +34,4 @@ void LeafBucket::clear() noexcept {
     data_.clear();
 }
 
-} // namespace topiary::internal
+} // namespace copse::internal

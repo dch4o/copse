@@ -1,7 +1,7 @@
 #pragma once
 
-#include "topiary/bbox.hpp"
-#include "topiary/impl/point_traits.hpp"
+#include "copse/bbox.hpp"
+#include "copse/impl/point_traits.hpp"
 
 #include <Eigen/Core>
 
@@ -10,7 +10,7 @@
 #include <span>
 #include <vector>
 
-namespace topiary {
+namespace copse {
 
 namespace internal {
 /// @brief PIMPL implementation type, defined in `impl/kd_tree_impl.hpp`.
@@ -134,4 +134,4 @@ using KDTree3 = KDTree<3>;
 using KDTree4 = KDTree<4>;
 /// @}
 
-} // namespace topiary
+} // namespace copse

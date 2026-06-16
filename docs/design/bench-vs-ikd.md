@@ -4,7 +4,7 @@
 > Companion: `docs/research/ikd_tree_benchmark.md`
 
 This document captures the design for a microbenchmark that compares
-`topiary::KDTree<3>` against the HKU MARS ikd-Tree on SLAM workloads,
+`copse::KDTree<3>` against the HKU MARS ikd-Tree on SLAM workloads,
 across three run modes, at N ∈ {10k, 100k}. It implements the
 `docs/TODO.md` → "ikd-tree comparative benchmark" slice. All numbers
 are factually grounded in the companion research doc (pinned commit
@@ -23,7 +23,7 @@ A single benchmark executable, `bench_perf_ikd`, that measures the five
 workloads the TODO names — per-batch insert latency, kNN throughput,
 radius search, spatial delete, memory footprint — for three trees:
 
-- **(a) tkd-tree** — `topiary::KDTree3`, single-thread.
+- **(a) copse** — `copse::KDTree3`, single-thread.
 - **(b) ikd single-thread** — ikd-Tree with background rebuild OFF.
 - **(c) ikd default** — ikd-Tree as shipped (background rebuild ON).
 
@@ -34,7 +34,7 @@ algorithmic win is never confused with a free-second-core win.
 ## Non-goals
 
 - Any D other than 3. ikd-Tree is hard-wired 3D (research §4); the 2D/4D
-  configurations of `topiary::KDTree` have no counterpart and are not run.
+  configurations of `copse::KDTree` have no counterpart and are not run.
 - New workloads or run modes beyond the three the TODO specifies. No
   box-search-only row, no concurrency-scaling sweep, no ikd `Build`
   vs. our batch-insert apples-to-oranges row.
@@ -54,7 +54,7 @@ algorithmic win is never confused with a free-second-core win.
 
 | Mode | Tree | Rebuild | Threads | Measures |
 |---|---|---|---|---|
-| (a) | `topiary::KDTree3` | inline partial (scapegoat) | 1 | our algorithm, single core |
+| (a) | `copse::KDTree3` | inline partial (scapegoat) | 1 | our algorithm, single core |
 | (b) | `KD_TREE<ikdTree_PointType>`, `Multi_Thread_Rebuild_Point_Num = INT_MAX` | synchronous, inline | 1 (see decision below) | ikd algorithm, single core |
 | (c) | `KD_TREE<ikdTree_PointType>`, `Multi_Thread_Rebuild_Point_Num = 1500` | off-thread for subtrees ≥ 1500 | 2 (worker + BG) | ikd as-shipped, second core in play |
 
@@ -94,7 +94,7 @@ Per research §2. "Bulk build" is **out** (the TODO does not list it and
 it invites the unfair `Build` vs. batch-insert row); the streaming
 insert workload is the only insert row.
 
-| Workload | tkd-tree | ikd-Tree |
+| Workload | copse | ikd-Tree |
 |---|---|---|
 | Per-batch insert latency | `insert(span)` | `Add_Points(batch, false)` |
 | kNN throughput | `knn_search(q, k)` | `Nearest_Search(q, k, pts, sqd, max_dist)` |
@@ -236,8 +236,8 @@ Modified files:
 
 | Path | Change |
 |---|---|
-| `CMakeLists.txt` | `include(IkdTree)` (guarded by `TOPIARY_BUILD_BENCHMARKS`), mirroring the existing `include(Dependencies)` / `include(ClangTidy)` lines. |
-| `benchmarks/CMakeLists.txt` | Register `bench_perf_ikd` as a standalone target (not in the Catch2 `foreach`, since it is a plain-`main` executable) linking `topiary`, the two ikd object targets (which carry the facade adapter and put `ikd_facade.h` on the include path), `Eigen3::Eigen`, and `Threads::Threads`. clang-tidy is **not** run on upstream ikd sources (the object targets set `CXX_CLANG_TIDY ""`). |
+| `CMakeLists.txt` | `include(IkdTree)` (guarded by `COPSE_BUILD_BENCHMARKS`), mirroring the existing `include(Dependencies)` / `include(ClangTidy)` lines. |
+| `benchmarks/CMakeLists.txt` | Register `bench_perf_ikd` as a standalone target (not in the Catch2 `foreach`, since it is a plain-`main` executable) linking `copse`, the two ikd object targets (which carry the facade adapter and put `ikd_facade.h` on the include path), `Eigen3::Eigen`, and `Threads::Threads`. clang-tidy is **not** run on upstream ikd sources (the object targets set `CXX_CLANG_TIDY ""`). |
 
 ## Dependencies
 
@@ -295,7 +295,7 @@ configure/build runs via `docker exec admiring_payne bash -lc '...'`.
 
 ## Build and test
 
-- `bench_perf_ikd` builds only under `TOPIARY_BUILD_BENCHMARKS=ON`. It is a
+- `bench_perf_ikd` builds only under `COPSE_BUILD_BENCHMARKS=ON`. It is a
   plain executable (no Catch2), so it runs directly:
   `docker exec admiring_payne bash -lc 'build/benchmarks/bench_perf_ikd'`.
 - Build with capped parallelism: `-j $(nproc --ignore=1)` (project ops).

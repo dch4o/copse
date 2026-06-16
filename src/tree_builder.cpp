@@ -1,4 +1,4 @@
-#include "topiary/impl/tree_builder.hpp"
+#include "copse/impl/tree_builder.hpp"
 
 #include <algorithm>
 #include <array>
@@ -8,7 +8,7 @@
 #include <limits>
 #include <vector>
 
-namespace topiary::internal {
+namespace copse::internal {
 
 static_assert(sizeof(TreeNode) == 32, "TreeNode must stay 32 B for cache density on descent");
 
@@ -639,4 +639,4 @@ template class TreeBuilder<2>;
 template class TreeBuilder<3>;
 template class TreeBuilder<4>;
 
-} // namespace topiary::internal
+} // namespace copse::internal

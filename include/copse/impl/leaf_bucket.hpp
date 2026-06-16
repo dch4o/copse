@@ -4,7 +4,7 @@
 #include <span>
 #include <vector>
 
-namespace topiary::internal {
+namespace copse::internal {
 
 /// @brief Generation-stamped index stored in each leaf bucket slot.
 struct BucketEntry {
@@ -51,4 +51,4 @@ private:
     std::vector<BucketEntry> data_;
 };
 
-} // namespace topiary::internal
+} // namespace copse::internal

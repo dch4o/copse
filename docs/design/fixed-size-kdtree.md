@@ -1,4 +1,4 @@
-# Fixed-size kd-tree (`topiary`)
+# Fixed-size kd-tree (`copse`)
 
 > Design date: 2026-05-05 · Last revised: 2026-05-14 (rev16) · Slug: fixed-size-kdtree
 > Companion: `docs/research/fixed_size_kdtree.md`
@@ -26,15 +26,15 @@ A header-templated, single-writer C++ library providing a fixed-capacity kd-tree
 
 ## Public API
 
-The library lives under namespace `topiary`. Header layout is shown in [File layout](#file-layout).
+The library lives under namespace `copse`. Header layout is shown in [File layout](#file-layout).
 
 ### Core type
 
 ```cpp
-namespace topiary {
+namespace copse {
 
 // D restricted to {2,3,4} via concept.
-// SupportedDim and PointType live under topiary::detail; users reach the canonical
+// SupportedDim and PointType live under copse::detail; users reach the canonical
 // point type through KDTree<Dim>::Point and never need to spell either name.
 template <int Dim>
     requires detail::SupportedDim<Dim>
@@ -97,7 +97,7 @@ public:
     void rebuild_all(); // forces a from-scratch rebuild; intended for tests, benchmarks, manual tail control.
 };
 
-} // namespace topiary
+} // namespace copse
 ```
 
 The use case is streaming/query — callers insert points and read back the coordinates of nearest matches. Result rows carry coords, not opaque references. Persistent point identity is the caller's concern; the tree exposes no `Handle`, no `is_valid`, no `point_of`. Internally each live point has an integer index used by the topology, but the index never escapes the API.
@@ -105,7 +105,7 @@ The use case is streaming/query — callers insert points and read back the coor
 ### Aliases
 
 ```cpp
-namespace topiary {
+namespace copse {
 using KDTree2 = KDTree<2>;
 using KDTree3 = KDTree<3>;
 using KDTree4 = KDTree<4>;
@@ -120,7 +120,7 @@ A future opt-in caller-provided out-span is the cleanest extension point if per-
 
 ### Error model
 
-- **Preconditions** (e.g. capacity == 0, k == 0, NaN coordinates): throw `std::invalid_argument` or a `topiary::PreconditionError` derived from it.
+- **Preconditions** (e.g. capacity == 0, k == 0, NaN coordinates): throw `std::invalid_argument` or a `copse::PreconditionError` derived from it.
 - **Operational results** (duplicate rejection, no-match remove, empty-tree query): communicated through return values; never thrown.
 - **Capacity overflow** is not an error — it is silent FIFO eviction. Evictions are not reported back to the caller.
 
@@ -143,7 +143,7 @@ A **FIFO buffer** is maintained as a separate free-list / write cursor over the 
 A **node pool** of `TreeNode` records lives in a `std::vector<TreeNode>` indexed by 32-bit integers. Nodes are bucketed leaves:
 
 ```cpp
-// internal — include/topiary/impl/tree_node.hpp
+// internal — include/copse/impl/tree_node.hpp
 struct TreeNode {
     bool          is_leaf;
     std::uint32_t subtree_live_count;   // for scapegoat α-balance check
@@ -172,7 +172,7 @@ Callers access the active arm directly: `node.split_dim` / `node.bucket_offset`,
 Bucket storage is a single flat `std::vector<BucketEntry> data_` (in `LeafBucket`, renamed from `BucketPool`) referenced by `(offset, size, capacity)` per leaf, where:
 
 ```cpp
-// internal — include/topiary/impl/leaf_bucket.hpp
+// internal — include/copse/impl/leaf_bucket.hpp
 struct BucketEntry {
     std::uint32_t index;
     std::uint32_t gen;   // stamp from PointStore::generation(index) at push time
@@ -241,7 +241,7 @@ A separate `SearchKernel::any_within(root, query, sq_radius)` early-exit predica
 
 ### Header documentation convention
 
-All declarations in public headers under `include/topiary/` and internal headers under `include/topiary/impl/` follow the project's docstring rule:
+All declarations in public headers under `include/copse/` and internal headers under `include/copse/impl/` follow the project's docstring rule:
 
 - `///` line comments only — never `/** ... */`.
 - Never `///<`. Single-line docstrings on a variable/field/alias declaration go on the same line, to the right (`std::size_t capacity; /// Max points.`); multi-line docstrings and docstrings on functions/classes/structs go on their own `///` lines above the declaration.
@@ -259,22 +259,22 @@ All declarations in public headers under `include/topiary/` and internal headers
 
 ## File layout
 
-### Public headers — `include/topiary/`
+### Public headers — `include/copse/`
 
-- `kd_tree.hpp` — `KDTree<Dim>` declaration (with nested `Config` and `Neighbor`); primary entry point for users. Pulls in `impl/point_traits.hpp` transitively because the template signature and `Point` alias name those types; the names themselves remain under `topiary::detail` and are not part of the public surface.
-- `topiary.hpp` — umbrella header that includes `kd_tree.hpp`.
+- `kd_tree.hpp` — `KDTree<Dim>` declaration (with nested `Config` and `Neighbor`); primary entry point for users. Pulls in `impl/point_traits.hpp` transitively because the template signature and `Point` alias name those types; the names themselves remain under `copse::detail` and are not part of the public surface.
+- `copse.hpp` — umbrella header that includes `kd_tree.hpp`.
 
-### Internal headers — `include/topiary/impl/`
+### Internal headers — `include/copse/impl/`
 
 These are **not part of the public API** and live under `impl/` so that any future install rule can drop them with a single exclusion. They are placed under `include/` (not `src/`) so the `KDTreeImpl` PIMPL template can be reached by `kd_tree.cpp` via the same include style as public headers, and so callers building from a source checkout get consistent include paths.
 
-> **Install note (TODO when an install target is added):** the install rule must exclude `include/topiary/impl/`. Suggested form:
+> **Install note (TODO when an install target is added):** the install rule must exclude `include/copse/impl/`. Suggested form:
 > ```cmake
-> install(DIRECTORY include/topiary/ DESTINATION include/topiary
+> install(DIRECTORY include/copse/ DESTINATION include/copse
 >         PATTERN "impl" EXCLUDE)
 > ```
 
-- `point_traits.hpp` — minimal concept / trait machinery (`SupportedDim`, `PointType`, `SamePointAsEigen`, `default_leaf_bucket_size_v`), in `namespace topiary::detail`. The canonical point type is exposed publicly only as `KDTree<Dim>::Point`.
+- `point_traits.hpp` — minimal concept / trait machinery (`SupportedDim`, `PointType`, `SamePointAsEigen`, `default_leaf_bucket_size_v`), in `namespace copse::detail`. The canonical point type is exposed publicly only as `KDTree<Dim>::Point`.
 - `tree_node.hpp` — internal `TreeNode`, the `BBox<Dim>` AABB struct used by leaves and the root extent, and node-pool typedefs. Pulls in `point_traits.hpp` for `detail::PointType<Dim>`.
 - `point_store.hpp` — point + liveness arrays, FIFO buffer (declarations).
 - `leaf_bucket.hpp` — flat bucket-index storage with per-leaf `(offset, size, capacity)` slices; fixed-cap leaves (`cap = 2B`), no compaction.
@@ -304,7 +304,7 @@ Tests are organized **one translation unit per testable class/struct/free functi
 
 Intra-batch dedup is exercised through `test_kd_tree.cpp`'s insert tests; there is no standalone `test_dedup.cpp` because the inline check is no longer a standalone function.
 
-Internal tests `#include "topiary/impl/...hpp"` directly; the impl headers ride on `topiary`'s public include path so no extra plumbing is needed.
+Internal tests `#include "copse/impl/...hpp"` directly; the impl headers ride on `copse`'s public include path so no extra plumbing is needed.
 
 ### Benchmarks — `benchmarks/` (Catch2 v3 microbench)
 
@@ -316,10 +316,10 @@ Internal tests `#include "topiary/impl/...hpp"` directly; the impl headers ride 
 - `CMakeLists.txt` — project setup, target wiring, options.
 - `cmake/Dependencies.cmake` — `find_package(Eigen3)`, then `find_package(Catch2 REQUIRED)` (module mode) when tests or benchmarks are enabled.
 - `cmake/FindCatch2.cmake` — find-module shim. Tries `find_package(Catch2 3 CONFIG QUIET)` first so a system Catch2Config.cmake wins (CONFIG mode does not recurse into this find-module); falls back to `FetchContent_MakeAvailable(Catch2)`. After resolution it `include(Catch)` for `catch_discover_tests`.
-- `cmake/ClangTidy.cmake` — `TOPIARY_ENABLE_CLANG_TIDY` option; helper `topiary_enable_clang_tidy_on(<target>...)`. Wires `CXX_CLANG_TIDY` per first-party target so clang-tidy runs only on translation units that actually compile (incremental builds re-tidy only changed TUs); FetchContent'd Catch2 is excluded by being scoped per-target rather than via `CMAKE_CXX_CLANG_TIDY`.
+- `cmake/ClangTidy.cmake` — `COPSE_ENABLE_CLANG_TIDY` option; helper `copse_enable_clang_tidy_on(<target>...)`. Wires `CXX_CLANG_TIDY` per first-party target so clang-tidy runs only on translation units that actually compile (incremental builds re-tidy only changed TUs); FetchContent'd Catch2 is excluded by being scoped per-target rather than via `CMAKE_CXX_CLANG_TIDY`.
 - `Dockerfile` — multi-stage, `docker buildx`-compatible. Stage `dev` (full toolchain + Eigen + clang-tidy + clang-format on `ubuntu:22.04`) is fleshed out; stages `build` and `runtime` are stubs with TODO comments.
 - `.clang-format` — formatting rules (existing).
-- `.clang-tidy` — broad checks (`bugprone-*`, `cppcoreguidelines-*`, `modernize-*`, `performance-*`, `portability-*`, `readability-*`) with carve-outs for low-signal noise (magic numbers, easily-swappable parameters, identifier length, union access required by the tagged `TreeNode`). `HeaderFilterRegex` restricts diagnostics to `include/topiary/` and `src/`.
+- `.clang-tidy` — broad checks (`bugprone-*`, `cppcoreguidelines-*`, `modernize-*`, `performance-*`, `portability-*`, `readability-*`) with carve-outs for low-signal noise (magic numbers, easily-swappable parameters, identifier length, union access required by the tagged `TreeNode`). `HeaderFilterRegex` restricts diagnostics to `include/copse/` and `src/`.
 - `.gitignore` — build/IDE noise.
 
 ## Dependencies
@@ -339,8 +339,8 @@ The project's expected generator is **Ninja**. The Dockerfile's `dev` stage inst
 
 Options:
 
-- `-DTOPIARY_BUILD_TESTS=OFF` / `-DTOPIARY_BUILD_BENCHMARKS=OFF` to opt out.
-- `-DTOPIARY_ENABLE_CLANG_TIDY=ON` to run clang-tidy as part of every TU compile of first-party targets. The wiring is per-target via `set_target_properties(... CXX_CLANG_TIDY ...)` so FetchContent'd Catch2 sources are not linted; incremental builds only re-tidy translation units that actually recompile.
+- `-DCOPSE_BUILD_TESTS=OFF` / `-DCOPSE_BUILD_BENCHMARKS=OFF` to opt out.
+- `-DCOPSE_ENABLE_CLANG_TIDY=ON` to run clang-tidy as part of every TU compile of first-party targets. The wiring is per-target via `set_target_properties(... CXX_CLANG_TIDY ...)` so FetchContent'd Catch2 sources are not linted; incremental builds only re-tidy translation units that actually recompile.
 
 ## Risks
 
@@ -406,7 +406,7 @@ std::vector<BucketView>   buckets_within  (const Point& query, float r) const;
   tombstone threshold). `Neighbor { Point coord; float sq_dist; }`. Spatial
   deletes: `delete_box`, `delete_boxes` (batch, one rebuild for the
   whole list), `delete_outside_radius`; `BBox<Dim>` is a public type in
-  `topiary/bbox.hpp`.
+  `copse/bbox.hpp`.
 - **Queries**: `knn_search`, `radius_search`, `hybrid_search` through the
   unified `SearchKernel<Dim>::search` (bounded max-heap, incremental
   box-distance pruning); `any_within` early-exit predicate sibling for the

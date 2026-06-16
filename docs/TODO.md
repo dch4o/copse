@@ -186,7 +186,7 @@ partition-AABB derivation during descent.
 
 ## ikd-tree comparative benchmark (later)
 
-Microbenchmark comparing tkd-tree against ikd-tree (HKU MARS) on SLAM
+Microbenchmark comparing copse against ikd-tree (HKU MARS) on SLAM
 workloads. Run once Slice 5 + Spatial deletes have landed so the
 comparison is meaningful.
 
@@ -196,7 +196,7 @@ comparison is meaningful.
       latency, kNN throughput, radius search, spatial delete, memory
       footprint; run at N ∈ {10k, 100k} (1M dropped from the run — dominant
       cost, signal saturated by 100k; 1M memory projected analytically)
-- [x] Run modes: tkd-tree (single-thread) | ikd-tree single-thread (BG
+- [x] Run modes: copse (single-thread) | ikd-tree single-thread (BG
       rebuild disabled) | ikd-tree default (BG rebuild on) — report all
       three transparently so algorithmic vs concurrency wins are
       separable

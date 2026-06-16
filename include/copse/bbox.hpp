@@ -1,8 +1,8 @@
 #pragma once
 
-#include "topiary/impl/point_traits.hpp"
+#include "copse/impl/point_traits.hpp"
 
-namespace topiary {
+namespace copse {
 
 /// @brief Axis-aligned bounding box: per-axis inclusive lower and upper bounds.
 /// @tparam Dim Spatial dimension.
@@ -12,4 +12,4 @@ struct BBox {
     detail::PointType<Dim> max_corner; /// Per-axis upper bounds (inclusive).
 };
 
-} // namespace topiary
+} // namespace copse

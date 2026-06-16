@@ -4,7 +4,7 @@
 // sampled from the prefill so every query matches at least one live point,
 // avoiding the "uniform queries miss everything" trap.
 
-#include "topiary/topiary.hpp"
+#include "copse/copse.hpp"
 
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -14,7 +14,7 @@
 #include <random>
 #include <vector>
 
-namespace topiary {
+namespace copse {
 
 namespace {
 
@@ -80,4 +80,4 @@ TEST_CASE("Bench: remove query-count sweep, 1M points", "[!benchmark][remove][sw
     };
 }
 
-} // namespace topiary
+} // namespace copse

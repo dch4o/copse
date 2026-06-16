@@ -1,11 +1,11 @@
 #pragma once
 
-#include "topiary/bbox.hpp"
-#include "topiary/impl/point_traits.hpp"
+#include "copse/bbox.hpp"
+#include "copse/impl/point_traits.hpp"
 
 #include <cstdint>
 
-namespace topiary::internal {
+namespace copse::internal {
 
 /// @brief Tagged-union node: internal split node or bucketed leaf, selected by `is_leaf`.
 /// The anonymous inner structs are a widely supported GCC/Clang extension; pedantic
@@ -47,4 +47,4 @@ struct TreeNode {
 #pragma GCC diagnostic pop
 #endif
 
-} // namespace topiary::internal
+} // namespace copse::internal

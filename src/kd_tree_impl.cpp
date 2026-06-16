@@ -1,9 +1,9 @@
-#include "topiary/impl/kd_tree_impl.hpp"
+#include "copse/impl/kd_tree_impl.hpp"
 
 #include <limits>
 #include <stdexcept>
 
-namespace topiary::internal {
+namespace copse::internal {
 
 template <int Dim>
 KDTreeImpl<Dim>::KDTreeImpl(Config cfg)
@@ -161,4 +161,4 @@ template class KDTreeImpl<2>;
 template class KDTreeImpl<3>;
 template class KDTreeImpl<4>;
 
-} // namespace topiary::internal
+} // namespace copse::internal

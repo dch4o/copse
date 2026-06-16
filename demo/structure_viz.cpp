@@ -23,11 +23,11 @@
 
 namespace {
 
-using Point    = topiary::KDTree<3>::Point;
-using TreeNode = topiary::internal::TreeNode;
+using Point    = copse::KDTree<3>::Point;
+using TreeNode = copse::internal::TreeNode;
 using Tree     = demo::InspectableKdTree<3>;
 using Vec3     = std::array<float, 3>;
-using Box      = topiary::BBox<3>;
+using Box      = copse::BBox<3>;
 
 constexpr float kExtent = 100.0f;
 
@@ -302,7 +302,7 @@ int run_dump() {
 } // namespace
 
 int main(int argc, char** argv) {
-    topiary::KDTree<3>::Config cfg;
+    copse::KDTree<3>::Config cfg;
     cfg.capacity   = 3000; // small so inserting past it triggers FIFO eviction (and its rebuilds)
     cfg.resolution = 1e-4f;
     static Tree tree{cfg};

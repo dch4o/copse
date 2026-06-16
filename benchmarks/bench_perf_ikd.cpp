@@ -1,6 +1,6 @@
 // ikd-Tree comparative benchmark — plain `int main()` harness.
 //
-// Compares `topiary::KDTree3` against the HKU MARS ikd-Tree across three run
+// Compares `copse::KDTree3` against the HKU MARS ikd-Tree across three run
 // modes for seven workloads (insert / kNN / radius / spatial delete / bulk delete
 // / mixed cycle / memory); the N sweep is selectable via argv, report runs {10k,100k}.
 // This is a deliberate departure from the sibling
@@ -16,7 +16,7 @@
 // the FetchContent + dual-macro link is proven; the full sweep writes the
 // numbers transcribed into docs/benchmark/vs_ikd_tree.md.
 
-#include "topiary/topiary.hpp"
+#include "copse/copse.hpp"
 
 #include <sys/resource.h>
 #include <unistd.h>
@@ -67,7 +67,7 @@ constexpr std::size_t kDeleteEvery      = 3;     // box-delete every Nth frame (
 constexpr std::size_t kBulkIters = 5; // insert+delete iterations per measured action
 
 enum class Mode {
-    Tkd,      // (a) topiary::KDTree3, single-thread
+    Copse,      // (a) copse::KDTree3, single-thread
     IkdBgOff, // (b) ikd, background rebuild OFF
     IkdBgOn,  // (c) ikd, background rebuild ON (as shipped)
 };
@@ -84,7 +84,7 @@ struct MemSample {
     double analytic_node_bytes; // cross-check: node_count * per-node bytes
 };
 
-using Point = topiary::KDTree3::Point;
+using Point = copse::KDTree3::Point;
 
 std::vector<Point> make_points(std::size_t count, std::uint64_t seed, float extent) {
     std::mt19937_64                       rng{seed};
@@ -185,13 +185,13 @@ Timing time_action(Setup&& setup, Action&& action) {
 
 // --- Tree construction: one alive at a time, all heap-allocated ---
 
-std::unique_ptr<topiary::KDTree3> make_tkd(std::size_t capacity) {
-    topiary::KDTree3::Config cfg;
+std::unique_ptr<copse::KDTree3> make_copse(std::size_t capacity) {
+    copse::KDTree3::Config cfg;
     cfg.capacity            = capacity;
     cfg.resolution          = kResolution;
     cfg.alpha               = kAlpha;
     cfg.tombstone_threshold = kTombstoneThreshold;
-    return std::make_unique<topiary::KDTree3>(cfg);
+    return std::make_unique<copse::KDTree3>(cfg);
 }
 
 std::unique_ptr<ikd_facade::Tree> make_ikd(Mode mode) {
@@ -203,11 +203,11 @@ std::unique_ptr<ikd_facade::Tree> make_ikd(Mode mode) {
 // --- Workloads: one function per measure, each builds ONE tree then tears it down ---
 
 bool is_ikd(Mode mode) {
-    return mode != Mode::Tkd;
+    return mode != Mode::Copse;
 }
 
-std::unique_ptr<topiary::KDTree3> build_tkd(const std::vector<Point>& points) {
-    auto tree = make_tkd(points.size());
+std::unique_ptr<copse::KDTree3> build_copse(const std::vector<Point>& points) {
+    auto tree = make_copse(points.size());
     tree->insert(points); // no bulk-build API; stream so live counts match ikd's one-shot build
     return tree;
 }
@@ -254,7 +254,7 @@ std::size_t delete_box_count() {
 
 // ikd's `Add_Points` null-derefs on an empty root (`Root_Node->division_axis`),
 // so a one-point seed builds the root in setup (untimed) and the rest streams
-// under measurement. tkd is seeded with the same point for parity.
+// under measurement. copse is seeded with the same point for parity.
 constexpr std::size_t kInsertSeed = 1;
 
 std::size_t insert_streamed(std::size_t n) {
@@ -290,7 +290,7 @@ Timing bench_insert(Mode mode, std::size_t n) {
     }
 
     struct State {
-        std::unique_ptr<topiary::KDTree3> tkd;
+        std::unique_ptr<copse::KDTree3> copse;
         std::unique_ptr<ikd_facade::Tree> ikd;
     };
 
@@ -300,8 +300,8 @@ Timing bench_insert(Mode mode, std::size_t n) {
             state.ikd = make_ikd(mode);
             state.ikd->build(ikd_seed); // seed the root (untimed)
         } else {
-            state.tkd = make_tkd(n);
-            state.tkd->insert(std::span<const Point>{cloud.data(), seed_len}); // seed (untimed)
+            state.copse = make_copse(n);
+            state.copse->insert(std::span<const Point>{cloud.data(), seed_len}); // seed (untimed)
         }
         return state;
     };
@@ -314,7 +314,7 @@ Timing bench_insert(Mode mode, std::size_t n) {
         } else {
             for (std::size_t off = seed_len; off < n; off += kInsertBatch) {
                 const std::size_t len = std::min(kInsertBatch, n - off);
-                state.tkd->insert(std::span<const Point>{cloud.data() + off, len});
+                state.copse->insert(std::span<const Point>{cloud.data() + off, len});
             }
         }
     };
@@ -330,7 +330,7 @@ Timing bench_knn(Mode mode, std::size_t n) {
     // INFINITY max_dist default, matching our unbounded knn_search.
 
     struct State {
-        std::unique_ptr<topiary::KDTree3> tkd;
+        std::unique_ptr<copse::KDTree3> copse;
         std::unique_ptr<ikd_facade::Tree> ikd;
     };
 
@@ -339,7 +339,7 @@ Timing bench_knn(Mode mode, std::size_t n) {
         if (is_ikd(mode)) {
             state.ikd = build_ikd(mode, ikd_cloud);
         } else {
-            state.tkd = build_tkd(cloud);
+            state.copse = build_copse(cloud);
         }
         return state;
     };
@@ -351,7 +351,7 @@ Timing bench_knn(Mode mode, std::size_t n) {
             if (is_ikd(mode)) {
                 found += state.ikd->knn(ikd_facade::Point{query.x(), query.y(), query.z()}, kKnnK, sq_dists);
             } else {
-                found += state.tkd->knn_search(query, kKnnK).size();
+                found += state.copse->knn_search(query, kKnnK).size();
             }
         }
         (void)found;
@@ -367,7 +367,7 @@ Timing bench_radius(Mode mode, std::size_t n) {
     const float radius    = density_radius(n);
 
     struct State {
-        std::unique_ptr<topiary::KDTree3> tkd;
+        std::unique_ptr<copse::KDTree3> copse;
         std::unique_ptr<ikd_facade::Tree> ikd;
     };
 
@@ -376,7 +376,7 @@ Timing bench_radius(Mode mode, std::size_t n) {
         if (is_ikd(mode)) {
             state.ikd = build_ikd(mode, ikd_cloud);
         } else {
-            state.tkd = build_tkd(cloud);
+            state.copse = build_copse(cloud);
         }
         return state;
     };
@@ -389,7 +389,7 @@ Timing bench_radius(Mode mode, std::size_t n) {
                 found +=
                     state.ikd->radius(ikd_facade::Point{query.x(), query.y(), query.z()}, radius, in_radius);
             } else {
-                found += state.tkd->radius_search(query, radius).size();
+                found += state.copse->radius_search(query, radius).size();
             }
         }
         (void)found;
@@ -403,19 +403,19 @@ Timing bench_spatial_delete(Mode mode, std::size_t n) {
     const auto ikd_cloud = is_ikd(mode) ? to_ikd_cloud(cloud) : std::vector<ikd_facade::Point>{};
     const auto boxes     = make_delete_boxes();
 
-    // Pre-build the tkd BBox list once; the batched delete runs the whole grid as a
+    // Pre-build the copse BBox list once; the batched delete runs the whole grid as a
     // single rebuild-triggering call rather than one trigger per box.
-    std::vector<topiary::BBox<3>> tkd_boxes;
+    std::vector<copse::BBox<3>> copse_boxes;
     if (!is_ikd(mode)) {
-        tkd_boxes.reserve(boxes.size());
+        copse_boxes.reserve(boxes.size());
         for (const auto& box : boxes) {
-            tkd_boxes.push_back(topiary::BBox<3>{Point{box.min[0], box.min[1], box.min[2]},
+            copse_boxes.push_back(copse::BBox<3>{Point{box.min[0], box.min[1], box.min[2]},
                                                  Point{box.max[0], box.max[1], box.max[2]}});
         }
     }
 
     struct State {
-        std::unique_ptr<topiary::KDTree3> tkd;
+        std::unique_ptr<copse::KDTree3> copse;
         std::unique_ptr<ikd_facade::Tree> ikd;
     };
 
@@ -425,7 +425,7 @@ Timing bench_spatial_delete(Mode mode, std::size_t n) {
         if (is_ikd(mode)) {
             state.ikd = build_ikd(mode, ikd_cloud);
         } else {
-            state.tkd = build_tkd(cloud);
+            state.copse = build_copse(cloud);
         }
         return state;
     };
@@ -434,7 +434,7 @@ Timing bench_spatial_delete(Mode mode, std::size_t n) {
         if (is_ikd(mode)) {
             state.ikd->delete_boxes(boxes);
         } else {
-            state.tkd->delete_boxes(std::span<const topiary::BBox<3>>{tkd_boxes.data(), tkd_boxes.size()});
+            state.copse->delete_boxes(std::span<const copse::BBox<3>>{copse_boxes.data(), copse_boxes.size()});
         }
     };
 
@@ -469,7 +469,7 @@ Timing bench_bulk_delete(Mode mode, std::size_t n) {
     }
 
     struct State {
-        std::unique_ptr<topiary::KDTree3> tkd;
+        std::unique_ptr<copse::KDTree3> copse;
         std::unique_ptr<ikd_facade::Tree> ikd;
     };
 
@@ -478,8 +478,8 @@ Timing bench_bulk_delete(Mode mode, std::size_t n) {
         if (is_ikd(mode)) {
             state.ikd = build_ikd(mode, base_ikd);
         } else {
-            state.tkd = make_tkd(n + kBulkIters * batch); // no FIFO eviction over the churn
-            state.tkd->insert(base_cloud);
+            state.copse = make_copse(n + kBulkIters * batch); // no FIFO eviction over the churn
+            state.copse->insert(base_cloud);
         }
         return state;
     };
@@ -491,9 +491,9 @@ Timing bench_bulk_delete(Mode mode, std::size_t n) {
                 state.ikd->delete_box(big_box);
             } else {
                 const std::size_t off = i * batch;
-                state.tkd->insert(std::span<const Point>{insert_pool.data() + off, batch});
-                state.tkd->delete_box(
-                    topiary::BBox<3>{Point{big_box.min[0], big_box.min[1], big_box.min[2]},
+                state.copse->insert(std::span<const Point>{insert_pool.data() + off, batch});
+                state.copse->delete_box(
+                    copse::BBox<3>{Point{big_box.min[0], big_box.min[1], big_box.min[2]},
                                      Point{big_box.max[0], big_box.max[1], big_box.max[2]}});
             }
         }
@@ -529,7 +529,7 @@ Timing bench_mixed(Mode mode, std::size_t n) {
     }
 
     struct State {
-        std::unique_ptr<topiary::KDTree3> tkd;
+        std::unique_ptr<copse::KDTree3> copse;
         std::unique_ptr<ikd_facade::Tree> ikd;
     };
 
@@ -540,8 +540,8 @@ Timing bench_mixed(Mode mode, std::size_t n) {
         } else {
             // Capacity holds the base map plus every frame's inserts — no FIFO eviction,
             // so both trees see identical insert/delete sequences.
-            state.tkd = make_tkd(n + kCycleCount * kCycleInsertBatch);
-            state.tkd->insert(base_cloud);
+            state.copse = make_copse(n + kCycleCount * kCycleInsertBatch);
+            state.copse->insert(base_cloud);
         }
         return state;
     };
@@ -554,7 +554,7 @@ Timing bench_mixed(Mode mode, std::size_t n) {
                 state.ikd->add_points(ikd_batches[c]);
             } else {
                 const std::size_t off = c * kCycleInsertBatch;
-                state.tkd->insert(std::span<const Point>{insert_pool.data() + off, kCycleInsertBatch});
+                state.copse->insert(std::span<const Point>{insert_pool.data() + off, kCycleInsertBatch});
             }
             for (std::size_t q = 0; q < kCycleQueries; ++q) {
                 const auto& query = queries[q];
@@ -562,7 +562,7 @@ Timing bench_mixed(Mode mode, std::size_t n) {
                     found +=
                         state.ikd->knn(ikd_facade::Point{query.x(), query.y(), query.z()}, kKnnK, sq_dists);
                 } else {
-                    found += state.tkd->knn_search(query, kKnnK).size();
+                    found += state.copse->knn_search(query, kKnnK).size();
                 }
             }
             if (c % kDeleteEvery == 0) {
@@ -570,7 +570,7 @@ Timing bench_mixed(Mode mode, std::size_t n) {
                 if (is_ikd(mode)) {
                     state.ikd->delete_box(box);
                 } else {
-                    state.tkd->delete_box(topiary::BBox<3>{Point{box.min[0], box.min[1], box.min[2]},
+                    state.copse->delete_box(copse::BBox<3>{Point{box.min[0], box.min[1], box.min[2]},
                                                               Point{box.max[0], box.max[1], box.max[2]}});
                 }
             }
@@ -602,14 +602,14 @@ MemSample bench_memory(Mode mode, std::size_t n) {
         return MemSample{rss_after - rss_before, analytic_node_bytes};
     }
 
-    auto tree  = build_tkd(cloud);
+    auto tree  = build_copse(cloud);
     node_count = tree->size();
     // Flat SoA: a PointStore slot (~17 B: 12 B point + 4 B generation + liveness)
     // plus the bucketed TreeNode array (~32 B/node, far fewer nodes than points).
-    constexpr double kTkdSlotBytes = 17.0;
-    constexpr double kTkdNodeBytes = 32.0;
+    constexpr double kCopseSlotBytes = 17.0;
+    constexpr double kCopseNodeBytes = 32.0;
     analytic_node_bytes =
-        static_cast<double>(node_count) * kTkdSlotBytes + static_cast<double>(node_count) * kTkdNodeBytes;
+        static_cast<double>(node_count) * kCopseSlotBytes + static_cast<double>(node_count) * kCopseNodeBytes;
     const double rss_after = current_rss_bytes();
     return MemSample{rss_after - rss_before, analytic_node_bytes};
 }
@@ -619,15 +619,15 @@ int smoke() {
     const auto            cloud   = make_points(kSmokeN, /*seed=*/0x5A1A11ULL, /*extent=*/10.0f);
     const auto            query   = Point{1.0f, 1.0f, 1.0f};
 
-    // (a) tkd-tree.
+    // (a) copse.
     {
-        auto tree = make_tkd(/*capacity=*/kSmokeN * 2);
+        auto tree = make_copse(/*capacity=*/kSmokeN * 2);
         tree->insert(cloud);
         const auto knn    = tree->knn_search(query, 4);
         const auto radius = tree->radius_search(query, 1.0f);
         const auto erased =
-            tree->delete_box(topiary::BBox<3>{Point{-1.0f, -1.0f, -1.0f}, Point{0.0f, 0.0f, 0.0f}});
-        std::printf("smoke tkd:      size=%zu knn=%zu radius=%zu erased=%zu\n",
+            tree->delete_box(copse::BBox<3>{Point{-1.0f, -1.0f, -1.0f}, Point{0.0f, 0.0f, 0.0f}});
+        std::printf("smoke copse:      size=%zu knn=%zu radius=%zu erased=%zu\n",
                     tree->size(),
                     knn.size(),
                     radius.size(),
@@ -659,8 +659,8 @@ int smoke() {
 
 const char* mode_label(Mode mode) {
     switch (mode) {
-    case Mode::Tkd:
-        return "(a) tkd";
+    case Mode::Copse:
+        return "(a) copse";
     case Mode::IkdBgOff:
         return "(b) ikd bg-off";
     case Mode::IkdBgOn:
@@ -682,7 +682,7 @@ const char* n_label(std::size_t n) {
     }
 }
 
-constexpr Mode kModes[] = {Mode::Tkd, Mode::IkdBgOff, Mode::IkdBgOn};
+constexpr Mode kModes[] = {Mode::Copse, Mode::IkdBgOff, Mode::IkdBgOn};
 
 void emit_timed(const char* title,
                 Timing (*workload)(Mode, std::size_t),

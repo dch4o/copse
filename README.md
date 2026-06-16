@@ -1,10 +1,11 @@
-# tkd-tree
+# copse
 
 A fixed-capacity kd-tree of `float` points in low dimensions (D ∈ {2, 3, 4}),
-exposed as `topiary::KDTree<Dim>`. The library is named **topiary** after the
-gardener's art of holding a plant at a bounded shape through repeated cutting:
-inserts beyond capacity silently evict the oldest point (FIFO), and near-duplicate
-inserts within a configurable `resolution` radius are rejected.
+exposed as `copse::KDTree<Dim>`. The library is named **copse** after the small
+coppiced woodland that is held within bounds by cutting it back as it grows:
+inserts beyond capacity silently evict the oldest point (FIFO), near-duplicate
+inserts within a configurable `resolution` radius are rejected, and a
+scapegoat-style partial rebuild periodically prunes the tree back into balance.
 
 ## Highlights
 
@@ -17,9 +18,9 @@ inserts within a configurable `resolution` radius are rejected.
 ## Usage
 
 ```cpp
-#include "topiary/kd_tree.hpp"
+#include "copse/kd_tree.hpp"
 
-topiary::KDTree3 tree({
+copse::KDTree3 tree({
     .capacity   = 10'000,
     .resolution = 0.05f,
 });
@@ -37,9 +38,9 @@ ctest --test-dir build --output-on-failure
 ```
 
 CMake options (all default `ON` except clang-tidy):
-- `TOPIARY_BUILD_TESTS`
-- `TOPIARY_BUILD_BENCHMARKS`
-- `TOPIARY_ENABLE_CLANG_TIDY`
+- `COPSE_BUILD_TESTS`
+- `COPSE_BUILD_BENCHMARKS`
+- `COPSE_ENABLE_CLANG_TIDY`
 
 Requires C++20 and Eigen3.
 

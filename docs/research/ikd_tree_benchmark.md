@@ -27,18 +27,18 @@ ever distributed.
 
 ## Context and scope
 
-- Goal: stand up ikd-Tree alongside `topiary::KDTree<Dim>` so the existing
+- Goal: stand up ikd-Tree alongside `copse::KDTree<Dim>` so the existing
   TODO slice (`docs/TODO.md` → "ikd-tree comparative benchmark") can measure
   per-batch insert latency, kNN throughput, radius/box search, spatial delete,
   and resident memory at N ∈ {10k, 100k, 1M}, across three run modes:
-  tkd-tree (single-thread) | ikd-tree single-thread (BG rebuild off) |
+  copse (single-thread) | ikd-tree single-thread (BG rebuild off) |
   ikd-tree default (BG rebuild on).
 - This is the **research stage only**: findings, not design. No source/CMake
   changes, no `third_party/`. A separate design stage decides the integration.
 - Environment (verified in-container, name `admiring_payne`): gcc-13.3,
   cmake 3.31, ninja, Eigen at `/usr/local/include/eigen3`, pthread present,
   **PCL absent**, no TBB, GitHub reachable.
-- `topiary::KDTree<Dim>` API read from `include/topiary/kd_tree.hpp`; point
+- `copse::KDTree<Dim>` API read from `include/copse/kd_tree.hpp`; point
   type is `Eigen::Matrix<float, Dim, 1>` (`impl/point_traits.hpp`).
 
 ## Findings
@@ -145,7 +145,7 @@ All signatures verbatim; `PointVector = vector<PointType, Eigen::aligned_allocat
 | Box / range (AABB) | `void Box_Search(const BoxPointType &Box_of_Point, PointVector &Storage)` | Half-open box: `min <= p < max` per axis (`vertex_min[i] <= p && vertex_max[i] > p`). |
 | Point delete | `void Delete_Points(PointVector & PointToDel)` | **Lazy/tombstone**: matches by `same_point` (L∞ < `EPSS=1e-6`); sets `point_deleted`; `size()` unchanged, `validnum()` drops. |
 | Box delete | `int Delete_Point_Boxes(vector<BoxPointType> & BoxPoints)` | Lazy; returns count of points marked deleted. Subtree-wide tombstone when a node range is fully covered. |
-| Box re-insert (un-delete) | `void Add_Point_Boxes(vector<BoxPointType> & BoxPoints)` | Reactivates tombstoned points in the box. No direct `topiary` analog. |
+| Box re-insert (un-delete) | `void Add_Point_Boxes(vector<BoxPointType> & BoxPoints)` | Reactivates tombstoned points in the box. No direct `copse` analog. |
 | Tree extent | `BoxPointType tree_range()` | Root AABB. |
 | Counts | `int size()`, `int validnum()` | `size` = total nodes (incl. tombstones); `validnum` = live points. |
 | Collect removed | `void acquire_removed_points(PointVector & removed_points)` | Drains the deleted-points cache; only populated on actual node reclamation during rebuild. |
@@ -306,7 +306,7 @@ On top of per-node storage, **each `KD_TREE` object carries a fixed ~42 MB**
 not per-point — it dominates at N=10k but is amortized at N=1M. **Report it
 separately** so the per-point slope is comparable.
 
-**Our storage model (for contrast).** `topiary::KDTree<3>` is a flat
+**Our storage model (for contrast).** `copse::KDTree<3>` is a flat
 SoA design: `PointStore` (contiguous `Eigen::Matrix<float,3,1>` = 12 B/point
 plus a `uint32` generation and liveness bits), bucketed leaves, a flat
 `std::vector<TreeNode>` (32 B/node, far fewer nodes than points because leaves
@@ -355,7 +355,7 @@ result, so measure it carefully and fairly.
    the bulk workload — **don't** pit our batch insert against ikd-Tree `Build`.
 5. **BG thread: wall-clock vs CPU time.** In default mode ikd-Tree offloads
    large rebuilds to a second core, so **wall-clock insert latency drops but
-   total CPU work rises**. Single-thread tkd-tree pays rebuild cost inline.
+   total CPU work rises**. Single-thread copse pays rebuild cost inline.
    **Report both wall-clock and CPU time** (`getrusage` `ru_utime+ru_stime`, or
    `clock()` vs `chrono`), and run all three modes, so an algorithmic win is
    not confused with a free-second-core win. Also note: ikd-Tree's idle thread
@@ -390,7 +390,7 @@ result, so measure it carefully and fairly.
 - **Trying to `-D Multi_Thread_Rebuild_Point_Num=...` on the command line.** The
   macro is `#define`'d in the header, so a command-line define collides /
   redefines. Patch the header (or shadow it) instead. [HIGH]
-- **Comparing default ikd-Tree (BG on) against single-thread tkd-tree as if
+- **Comparing default ikd-Tree (BG on) against single-thread copse as if
   equal.** Conflates a concurrency win with an algorithmic one; the TODO
   explicitly demands all three modes for exactly this reason. [HIGH]
 - **Leaving ikd-Tree downsample on while measuring "raw insert".** Silently
@@ -486,7 +486,7 @@ prefer FetchContent so GPL source is never redistributed by us.
 4. ikd-Tree issue #31 "Can I Change pcl::PointXYZ to other data structure?" — https://github.com/hku-mars/ikd-Tree/issues/31 — accessed 2026-06-16.
 5. ikd-Tree issue #20 (custom point type / PCL removal discussion) — https://github.com/hku-mars/ikd-Tree/issues/20 — accessed 2026-06-16.
 6. GNU GPL v2 — http://www.gnu.org/licenses/old-licenses/gpl-2.0.html — accessed 2026-06-16.
-7. `topiary::KDTree` public API — `include/topiary/kd_tree.hpp`, `include/topiary/impl/point_traits.hpp` (this repo) — read 2026-06-16.
+7. `copse::KDTree` public API — `include/copse/kd_tree.hpp`, `include/copse/impl/point_traits.hpp` (this repo) — read 2026-06-16.
 
 ---
 

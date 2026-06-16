@@ -2,7 +2,7 @@
 // FIFO-eviction regime. TEST_CASEs slice the matrix differently — batch-size
 // sweep, full-tree warm path, capacity sweep × cold/warm regime.
 
-#include "topiary/topiary.hpp"
+#include "copse/copse.hpp"
 
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -12,7 +12,7 @@
 #include <random>
 #include <vector>
 
-namespace topiary {
+namespace copse {
 
 namespace {
 
@@ -183,4 +183,4 @@ TEST_CASE("Bench: cold vs warm insert across capacity (D=3, batch=10k)", "[!benc
     };
 }
 
-} // namespace topiary
+} // namespace copse

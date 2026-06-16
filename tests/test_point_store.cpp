@@ -1,6 +1,6 @@
 // BDD tests for PointStore<Dim>: capacity, liveness, point read-back, and acquire semantics.
 
-#include "topiary/impl/point_store.hpp"
+#include "copse/impl/point_store.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -9,7 +9,7 @@
 #include <stdexcept>
 #include <vector>
 
-namespace topiary::internal {
+namespace copse::internal {
 
 using P3f = detail::PointType<3>;
 
@@ -199,4 +199,4 @@ SCENARIO("PointStore<3>::for_each_live visits every live entry exactly once", "[
     }
 }
 
-} // namespace topiary::internal
+} // namespace copse::internal

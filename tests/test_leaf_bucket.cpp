@@ -1,10 +1,10 @@
 // BDD tests for LeafBucket: allocate offsets and view slices into the backing buffer.
 
-#include "topiary/impl/leaf_bucket.hpp"
+#include "copse/impl/leaf_bucket.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
-namespace topiary::internal {
+namespace copse::internal {
 
 SCENARIO("LeafBucket::allocate returns monotonically increasing offsets", "[leaf_bucket][allocate]") {
     GIVEN("an empty LeafBucket with reserved storage for 16 entries") {
@@ -146,4 +146,4 @@ SCENARIO("LeafBucket::push into independent slices does not cross-contaminate",
     }
 }
 
-} // namespace topiary::internal
+} // namespace copse::internal

@@ -1,7 +1,7 @@
 // BDD tests for the public KDTree<Dim> facade.
 // Black-box behavior only — internal helpers have their own test files.
 
-#include "topiary/topiary.hpp"
+#include "copse/copse.hpp"
 
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -13,7 +13,7 @@
 #include <utility>
 #include <vector>
 
-namespace topiary {
+namespace copse {
 
 SCENARIO("KDTree3 construction validates Config", "[kd_tree][ctor]") {
     GIVEN("a valid Config") {
@@ -1541,4 +1541,4 @@ SCENARIO("KDTree3 spatial delete then re-insert agrees with the oracle on the li
     }
 }
 
-} // namespace topiary
+} // namespace copse

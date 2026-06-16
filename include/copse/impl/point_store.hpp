@@ -1,6 +1,6 @@
 #pragma once
 
-#include "topiary/impl/point_traits.hpp"
+#include "copse/impl/point_traits.hpp"
 
 #include <Eigen/Core>
 
@@ -9,7 +9,7 @@
 #include <functional>
 #include <vector>
 
-namespace topiary::internal {
+namespace copse::internal {
 
 /// @brief Backing store for points, liveness, and FIFO buffer bookkeeping.
 /// @tparam Dim Point dimensionality.
@@ -72,4 +72,4 @@ private:
     std::uint32_t              buf_tail_ = 0;
 };
 
-} // namespace topiary::internal
+} // namespace copse::internal

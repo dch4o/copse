@@ -1,4 +1,4 @@
-#include "topiary/impl/search_kernel.hpp"
+#include "copse/impl/search_kernel.hpp"
 
 #include <algorithm>
 #include <array>
@@ -6,7 +6,7 @@
 #include <limits>
 #include <vector>
 
-namespace topiary::internal {
+namespace copse::internal {
 
 namespace {
 
@@ -261,4 +261,4 @@ template class SearchKernel<2>;
 template class SearchKernel<3>;
 template class SearchKernel<4>;
 
-} // namespace topiary::internal
+} // namespace copse::internal

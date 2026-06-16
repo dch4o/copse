@@ -1,8 +1,8 @@
-#include "topiary/kd_tree.hpp"
+#include "copse/kd_tree.hpp"
 
-#include "topiary/impl/kd_tree_impl.hpp"
+#include "copse/impl/kd_tree_impl.hpp"
 
-namespace topiary {
+namespace copse {
 
 template <int Dim>
     requires detail::SupportedDim<Dim>
@@ -91,4 +91,4 @@ template class KDTree<2>;
 template class KDTree<3>;
 template class KDTree<4>;
 
-} // namespace topiary
+} // namespace copse

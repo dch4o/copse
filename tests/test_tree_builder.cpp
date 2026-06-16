@@ -1,9 +1,9 @@
 // BDD tests for TreeBuilder<Dim>::rebuild on a small fixed point set.
 
-#include "topiary/impl/leaf_bucket.hpp"
-#include "topiary/impl/point_store.hpp"
-#include "topiary/impl/tree_builder.hpp"
-#include "topiary/impl/tree_node.hpp"
+#include "copse/impl/leaf_bucket.hpp"
+#include "copse/impl/point_store.hpp"
+#include "copse/impl/tree_builder.hpp"
+#include "copse/impl/tree_node.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -13,7 +13,7 @@
 #include <set>
 #include <vector>
 
-namespace topiary::internal {
+namespace copse::internal {
 
 namespace {
 
@@ -1042,4 +1042,4 @@ SCENARIO("TreeBuilder<3>::delete_outside_radius on an INVALID root returns 0",
     }
 }
 
-} // namespace topiary::internal
+} // namespace copse::internal

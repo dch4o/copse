@@ -14,7 +14,7 @@ naive per-node AABB pays for itself — the question is whether you want to spen
 the bytes on the hot kNN path.
 
 ## Context and scope
-- Target: `tkd-tree`, fixed-capacity, mutable, FIFO eviction, 32 B `TreeNode`
+- Target: `copse`, fixed-capacity, mutable, FIFO eviction, 32 B `TreeNode`
   in flat `std::vector` indexed by `uint32`, scapegoat-style partial rebuild.
 - $D = 3$, point counts 100 k–1 M, dominant query = kNN/radius search;
   spatial deletes are needed but less frequent.

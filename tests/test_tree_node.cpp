@@ -1,12 +1,12 @@
 // BDD sanity tests for the TreeNode tagged-union record.
 
-#include "topiary/impl/tree_node.hpp"
+#include "copse/impl/tree_node.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdint>
 
-namespace topiary::internal {
+namespace copse::internal {
 
 SCENARIO("TreeNode default state and INVALID sentinel", "[tree_node]") {
     GIVEN("a default-constructed TreeNode") {
@@ -34,4 +34,4 @@ SCENARIO("TreeNode default state and INVALID sentinel", "[tree_node]") {
     }
 }
 
-} // namespace topiary::internal
+} // namespace copse::internal
