@@ -35,6 +35,10 @@ coverage/
 # Local Claude settings
 .claude/settings.local.json
 
+# Local dev docs — only benchmark reports under docs/ are tracked
+/docs/*
+!/docs/benchmark/
+
 # Demo runtime state (Polyscope / ImGui write these on launch)
 .polyscope.ini
 imgui.ini
