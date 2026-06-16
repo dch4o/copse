@@ -66,6 +66,15 @@ RUN wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
     && update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-${LLVM_VERSION} 1 \
     && update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-${LLVM_VERSION} 1
 
+# GL + X11 for the Polyscope demos (build + runtime); harmless if demos are off.
+RUN apt-get update \
+    && apt-get install -y -q --no-install-recommends \
+    xorg-dev \
+    libgl1-mesa-dev \
+    libgl1-mesa-dri \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install CCache
 ARG CCACHE_VERSION=4.11.3
 RUN git clone --branch v${CCACHE_VERSION} https://github.com/ccache/ccache.git /opt/ccache \

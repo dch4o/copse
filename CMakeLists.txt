@@ -11,6 +11,7 @@ set(CMAKE_CXX_EXTENSIONS        OFF)
 
 option(TOPIARY_BUILD_TESTS      "Build topiary test suite" ON)
 option(TOPIARY_BUILD_BENCHMARKS "Build topiary benchmarks" ON)
+option(TOPIARY_BUILD_DEMOS      "Build topiary demos (pulls Polyscope; needs GL/X11)" OFF)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 include(Dependencies)
@@ -51,4 +52,8 @@ endif()
 if(TOPIARY_BUILD_BENCHMARKS)
     include(IkdTree)
     add_subdirectory(benchmarks)
+endif()
+
+if(TOPIARY_BUILD_DEMOS)
+    add_subdirectory(demo)
 endif()

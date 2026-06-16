@@ -34,3 +34,7 @@ coverage/
 
 # Local Claude settings
 .claude/settings.local.json
+
+# Demo runtime state (Polyscope / ImGui write these on launch)
+.polyscope.ini
+imgui.ini
