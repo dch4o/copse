@@ -15,6 +15,7 @@ scapegoat-style partial rebuild periodically prunes the tree back into balance.
 - `knn_search`, `radius_search`, `hybrid_search` (kNN within radius).
 - Spatial bulk deletes: `box_delete` (axis-aligned boxes) and `radius_crop` (keep only a local ball).
 - Scapegoat-style partial rebuild for amortized balance under streaming load.
+- Plain POD point type (`copse::Point<Dim>`); no runtime dependencies.
 
 ## Usage
 
@@ -26,11 +27,14 @@ copse::KDTree3 tree({
     .resolution = 0.05f,
 });
 
+std::vector<copse::Point<3>> points = /* ... */;
 tree.insert(points);
-auto neighbors = tree.knn_search(query, /*k=*/5);
 
-tree.box_delete({copse::BBox<3>{lo, hi}}); // clear an axis-aligned box
-tree.radius_crop(center, /*r=*/2.0f);      // keep only points within r of center
+const copse::Point<3> query{1.0f, 2.0f, 3.0f};
+auto neighbors = tree.knn_search(query, /*k=*/5);   // each: .coord, .sq_dist
+
+tree.box_delete({copse::BBox<3>{{0, 0, 0}, {1, 1, 1}}}); // clear an axis-aligned box
+tree.radius_crop(query, /*r=*/2.0f);                     // keep only points within r
 ```
 
 ## Build
@@ -47,8 +51,34 @@ CMake options:
 - `COPSE_BUILD_DEMOS` — default `OFF` (pulls Polyscope; needs GL/X11)
 - `COPSE_ENABLE_CLANG_TIDY` — default `OFF`
 
-Requires C++20 and Eigen3.
+## Install & consume
 
-## Status
+```sh
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+    -DCOPSE_BUILD_TESTS=OFF -DCOPSE_BUILD_BENCHMARKS=OFF
+cmake --build build
+cmake --install build --prefix /your/prefix     # add -DBUILD_SHARED_LIBS=ON for a .so
+```
 
-WIP. API surface and on-disk layout may change.
+Then, from a downstream CMake project:
+
+```cmake
+find_package(copse REQUIRED)
+target_link_libraries(your_app PRIVATE copse::copse)
+```
+
+copse ships both static and shared libraries, has no runtime dependencies, and
+propagates its C++20 requirement to consumers. It also works via
+`add_subdirectory()` / `FetchContent` — the `copse::copse` target is the same
+in-tree.
+
+## Requirements
+
+C++20. Tested on Linux with GCC and Clang; Windows/MSVC is not currently
+supported.
+
+## License
+
+MIT — see [`LICENSE`](LICENSE). The distributed library contains no third-party
+code; [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) lists the build-, test-,
+and benchmark-only dependencies.
