@@ -21,7 +21,8 @@ std::span<BucketEntry> LeafBucket::view(std::uint32_t offset, std::uint16_t size
 }
 
 bool LeafBucket::push(std::uint32_t offset, std::uint16_t& size, std::uint16_t capacity, BucketEntry entry) {
-    if (size == capacity) return false;
+    if (size == capacity)
+        return false;
     data_[offset + size] = entry;
     ++size;
     return true;

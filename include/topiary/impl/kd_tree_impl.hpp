@@ -1,11 +1,11 @@
 #pragma once
 
-#include "topiary/kd_tree.hpp"
 #include "topiary/impl/leaf_bucket.hpp"
 #include "topiary/impl/point_store.hpp"
 #include "topiary/impl/search_kernel.hpp"
 #include "topiary/impl/tree_builder.hpp"
 #include "topiary/impl/tree_node.hpp"
+#include "topiary/kd_tree.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -16,6 +16,7 @@ namespace topiary::internal {
 
 /// @brief PIMPL body of KDTree<Dim>; owns all storage and orchestrates the helpers.
 /// Single-writer; not safe to call mutators concurrently with any other method.
+/// @tparam Dim Point dimensionality.
 template <int Dim>
 class KDTreeImpl {
 public:
@@ -42,8 +43,19 @@ public:
     /// @copydoc topiary::KDTree::hybrid_search
     std::vector<Neighbor> hybrid_search(const Point& query, std::size_t k, float radius) const;
 
+    /// @copydoc topiary::KDTree::delete_in_box
+    std::size_t delete_in_box(const Point& min_corner, const Point& max_corner);
+
+    /// @copydoc topiary::KDTree::delete_in_boxes
+    std::size_t delete_in_boxes(std::span<const BBox<Dim>> boxes);
+
+    /// @copydoc topiary::KDTree::delete_outside_radius
+    std::size_t delete_outside_radius(const Point& center, float r);
+
+    /// @copydoc topiary::KDTree::size
     std::size_t size() const noexcept;
 
+    /// @copydoc topiary::KDTree::capacity
     std::size_t capacity() const noexcept;
 
     /// @copydoc topiary::KDTree::rebuild_all

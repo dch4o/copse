@@ -1,17 +1,11 @@
 #pragma once
 
+#include "topiary/bbox.hpp"
 #include "topiary/impl/point_traits.hpp"
 
 #include <cstdint>
 
 namespace topiary::internal {
-
-/// @brief Axis-aligned bounding box used for leaf-level pruning and the whole-tree root extent.
-template <int Dim>
-struct BBox {
-    detail::PointType<Dim> min_corner; /// Per-axis lower bound (inclusive).
-    detail::PointType<Dim> max_corner; /// Per-axis upper bound (inclusive).
-};
 
 /// @brief Tagged-union node: internal split node or bucketed leaf, selected by `is_leaf`.
 /// The anonymous inner structs are a widely supported GCC/Clang extension; pedantic
@@ -28,10 +22,10 @@ struct TreeNode {
 
     union {
         struct {
-            std::uint8_t  split_dim;   /// Dimension index split on (0..D-1).
+            std::uint8_t  split_dim; /// Dimension index split on (0..D-1).
             float         split_value;
-            std::uint32_t left;        /// Child node index; INVALID when unset.
-            std::uint32_t right;       /// Child node index; INVALID when unset.
+            std::uint32_t left;  /// Child node index; INVALID when unset.
+            std::uint32_t right; /// Child node index; INVALID when unset.
         };
         struct {
             std::uint32_t bucket_offset;   /// Slice start in the LeafBucket pool.
@@ -47,8 +41,7 @@ struct TreeNode {
     static constexpr std::uint32_t INVALID = ~std::uint32_t{0}; /// Sentinel for unset child indices.
 
     /// @brief Default-constructs as an empty leaf node.
-    TreeNode() noexcept
-        : bucket_offset(0), bucket_size(0), bucket_capacity(0), leaf_bbox_idx(INVALID) {}
+    TreeNode() noexcept : bucket_offset(0), bucket_size(0), bucket_capacity(0), leaf_bbox_idx(INVALID) {}
 };
 #if defined(__GNUC__) || defined(__clang__)
 #pragma GCC diagnostic pop

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "topiary/bbox.hpp"
 #include "topiary/impl/point_traits.hpp"
 
 #include <Eigen/Core>
@@ -19,6 +20,7 @@ class KDTreeImpl;
 
 /// @brief Fixed-capacity, mutable kd-tree of float points with FIFO eviction and resolution-based dedup.
 /// Single-writer; the caller is responsible for serializing access.
+/// @tparam Dim Point dimensionality.
 template <int Dim>
     requires detail::KDDim<Dim>
 class KDTree {
@@ -74,6 +76,19 @@ public:
     /// @throws std::invalid_argument If `k == 0` or `radius < 0`.
     std::vector<Neighbor> hybrid_search(const Point& query, std::size_t k, float radius) const;
 
+    /// @brief Release every live point inside the axis-aligned box [min_corner, max_corner].
+    /// @return Number of live points cleared.
+    std::size_t delete_in_box(const Point& min_corner, const Point& max_corner);
+
+    /// @brief Release every live point inside any of `boxes`, with a single end-of-batch rebuild.
+    /// @return Total number of live points cleared across all boxes (points in overlaps count once).
+    std::size_t delete_in_boxes(std::span<const BBox<Dim>> boxes);
+
+    /// @brief Release every live point strictly outside the sphere of radius `r` around `center`.
+    /// @return Number of live points cleared.
+    std::size_t delete_outside_radius(const Point& center, float r);
+
+    /// @brief Live point count.
     std::size_t size() const noexcept;
 
     /// @brief Fixed capacity supplied at construction.

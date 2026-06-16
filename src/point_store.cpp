@@ -50,17 +50,17 @@ std::uint32_t PointStore<Dim>::acquire(const Point& point) {
     if (live_ == capacity_) {
         const std::uint32_t victim = buffer_[buf_head_];
         ++generations_[victim];
-        live_bits_[victim]         = 0;
-        buf_pos_[victim]           = INVALID_POS;
-        buf_head_                  = (buf_head_ + 1) % capacity_;
+        live_bits_[victim] = 0;
+        buf_pos_[victim]   = INVALID_POS;
+        buf_head_          = (buf_head_ + 1) % capacity_;
         --live_;
     }
     const std::uint32_t index = buffer_[buf_tail_];
     ++generations_[index];
-    points_[index]            = point;
-    live_bits_[index]         = 1;
-    buf_pos_[index]           = buf_tail_;
-    buf_tail_                 = (buf_tail_ + 1) % capacity_;
+    points_[index]    = point;
+    live_bits_[index] = 1;
+    buf_pos_[index]   = buf_tail_;
+    buf_tail_         = (buf_tail_ + 1) % capacity_;
     ++live_;
     return index;
 }

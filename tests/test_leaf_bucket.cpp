@@ -30,8 +30,8 @@ SCENARIO("LeafBucket::view yields a span of the requested length over the backin
         WHEN("the mutable view is written through and the const view is read back") {
             auto slice = pool.view(offset, 8);
             for (std::size_t i = 0; i < slice.size(); ++i) {
-                slice[i] = BucketEntry{static_cast<std::uint32_t>(i + 1),
-                                       static_cast<std::uint32_t>((i + 1) * 10)};
+                slice[i] =
+                    BucketEntry{static_cast<std::uint32_t>(i + 1), static_cast<std::uint32_t>((i + 1) * 10)};
             }
             const auto& cpool = pool;
             const auto  ro    = cpool.view(offset, 8);
@@ -59,7 +59,8 @@ SCENARIO("LeafBucket::push appends entries until capacity is reached", "[leaf_bu
                 results[i] = pool.push(offset, size, capacity, expected[i]);
             }
             THEN("each push returns true and size advances to capacity") {
-                for (bool r : results) REQUIRE(r);
+                for (bool r : results)
+                    REQUIRE(r);
                 REQUIRE(size == capacity);
             }
             THEN("the slice reads back the inserted (index, gen) tuples in order") {

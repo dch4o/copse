@@ -63,7 +63,9 @@ std::size_t KDTreeImpl<Dim>::insert(std::span<const Point> points) {
         ++inserted;
     }
 
-    builder_.maybe_partial_rebuild(root_);
+    if (inserted > 0) {
+        builder_.maybe_partial_rebuild_full(root_);
+    }
     return inserted;
 }
 
@@ -81,7 +83,9 @@ std::size_t KDTreeImpl<Dim>::remove(std::span<const Point> queries) {
         }
     }
 
-    builder_.maybe_partial_rebuild(root_);
+    if (cleared > 0) {
+        builder_.maybe_partial_rebuild(root_);
+    }
     return cleared;
 }
 
@@ -102,6 +106,33 @@ auto KDTreeImpl<Dim>::hybrid_search(const Point& query, std::size_t k, float rad
 }
 
 template <int Dim>
+std::size_t KDTreeImpl<Dim>::delete_in_box(const Point& min_corner, const Point& max_corner) {
+    const BBox<Dim> box{min_corner, max_corner};
+    return delete_in_boxes(std::span<const BBox<Dim>>(&box, 1));
+}
+
+template <int Dim>
+std::size_t KDTreeImpl<Dim>::delete_in_boxes(std::span<const BBox<Dim>> boxes) {
+    std::size_t cleared = 0;
+    for (const auto& box : boxes) {
+        cleared += builder_.delete_in_box(root_, box.min_corner, box.max_corner);
+    }
+    if (cleared > 0) {
+        builder_.maybe_partial_rebuild(root_);
+    }
+    return cleared;
+}
+
+template <int Dim>
+std::size_t KDTreeImpl<Dim>::delete_outside_radius(const Point& center, float r) {
+    const std::size_t cleared = builder_.delete_outside_radius(root_, center, r);
+    if (cleared > 0) {
+        builder_.maybe_partial_rebuild(root_);
+    }
+    return cleared;
+}
+
+template <int Dim>
 std::size_t KDTreeImpl<Dim>::size() const noexcept {
     return points_.size();
 }
@@ -118,9 +149,7 @@ void KDTreeImpl<Dim>::rebuild_all() {
     leaf_bboxes_.clear();
 
     work_indices_.clear();
-    points_.for_each_live([this](std::uint32_t idx, const Point&) {
-        work_indices_.push_back(idx);
-    });
+    points_.for_each_live([this](std::uint32_t index, const Point&) { work_indices_.push_back(index); });
 
     if (work_indices_.empty()) {
         root_ = TreeNode::INVALID;

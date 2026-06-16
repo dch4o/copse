@@ -12,6 +12,7 @@
 namespace topiary::internal {
 
 /// @brief Backing store for points, liveness, and FIFO buffer bookkeeping.
+/// @tparam Dim Point dimensionality.
 template <int Dim>
 class PointStore {
 public:
@@ -20,8 +21,10 @@ public:
     /// @brief Construct with fixed capacity (must be > 0; validated by enclosing KDTreeImpl).
     explicit PointStore(std::size_t capacity);
 
+    /// @brief Fixed capacity supplied at construction.
     std::size_t capacity() const noexcept;
 
+    /// @brief Live point count.
     std::size_t size() const noexcept;
 
     /// @brief True iff `index` (in `[0, capacity)`) currently holds a live point.
@@ -30,7 +33,7 @@ public:
     /// @brief Read access to a stored point; `index` must be live.
     const Point& point(std::uint32_t index) const noexcept;
 
-    /// @brief Current generation stamp for `index`; bumped on every reuse (release or FIFO evict).
+    /// @brief Current generation stamp for `index`.
     std::uint32_t generation(std::uint32_t index) const noexcept;
 
     /// @brief Acquire an index (free or FIFO-evicted), write the point, return the assigned index.

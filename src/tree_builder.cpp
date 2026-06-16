@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <vector>
 
@@ -12,9 +14,9 @@ namespace {
 
 template <int Dim>
 std::uint32_t build_recursive(std::vector<TreeNode>&  nodes,
-                              LeafBucket&             buckets,
+                              LeafBucket&             leaf_buckets,
                               std::vector<BBox<Dim>>& leaf_bboxes,
-                              const PointStore<Dim>&  store,
+                              const PointStore<Dim>&  points,
                               std::size_t             leaf_bucket_size,
                               std::uint32_t*          indices_begin,
                               std::uint32_t*          indices_end) {
@@ -25,15 +27,15 @@ std::uint32_t build_recursive(std::vector<TreeNode>&  nodes,
     if (count <= leaf_bucket_size) {
         const auto cap    = static_cast<std::uint16_t>(2 * leaf_bucket_size);
         const auto size   = static_cast<std::uint16_t>(count);
-        const auto offset = buckets.allocate(cap);
-        auto       slice  = buckets.view(offset, cap);
+        const auto offset = leaf_buckets.allocate(cap);
+        auto       slice  = leaf_buckets.view(offset, cap);
         BBox<Dim>  leaf_bbox{};
         leaf_bbox.min_corner.setConstant(std::numeric_limits<float>::infinity());
         leaf_bbox.max_corner.setConstant(-std::numeric_limits<float>::infinity());
         for (std::size_t i = 0; i < count; ++i) {
             const auto idx       = indices_begin[i];
-            slice[i]             = BucketEntry{idx, store.generation(idx)};
-            const auto& point    = store.point(idx);
+            slice[i]             = BucketEntry{idx, points.generation(idx)};
+            const auto& point    = points.point(idx);
             leaf_bbox.min_corner = leaf_bbox.min_corner.cwiseMin(point);
             leaf_bbox.max_corner = leaf_bbox.max_corner.cwiseMax(point);
         }
@@ -59,7 +61,7 @@ std::uint32_t build_recursive(std::vector<TreeNode>&  nodes,
         maxs[dim] = -std::numeric_limits<float>::infinity();
     }
     for (auto* it = indices_begin; it != indices_end; ++it) {
-        const auto& point = store.point(*it);
+        const auto& point = points.point(*it);
         for (int dim = 0; dim < Dim; ++dim) {
             mins[dim] = std::min(mins[dim], point[dim]);
             maxs[dim] = std::max(maxs[dim], point[dim]);
@@ -77,15 +79,15 @@ std::uint32_t build_recursive(std::vector<TreeNode>&  nodes,
 
     auto* mid = indices_begin + count / 2;
     std::nth_element(
-        indices_begin, mid, indices_end, [&store, split_dim](std::uint32_t lhs, std::uint32_t rhs) {
-            return store.point(lhs)[split_dim] < store.point(rhs)[split_dim];
+        indices_begin, mid, indices_end, [&points, split_dim](std::uint32_t lhs, std::uint32_t rhs) {
+            return points.point(lhs)[split_dim] < points.point(rhs)[split_dim];
         });
-    const float split_value = store.point(*mid)[split_dim];
+    const float split_value = points.point(*mid)[split_dim];
 
     const std::uint32_t left =
-        build_recursive<Dim>(nodes, buckets, leaf_bboxes, store, leaf_bucket_size, indices_begin, mid);
+        build_recursive<Dim>(nodes, leaf_buckets, leaf_bboxes, points, leaf_bucket_size, indices_begin, mid);
     const std::uint32_t right =
-        build_recursive<Dim>(nodes, buckets, leaf_bboxes, store, leaf_bucket_size, mid, indices_end);
+        build_recursive<Dim>(nodes, leaf_buckets, leaf_bboxes, points, leaf_bucket_size, mid, indices_end);
 
     TreeNode& node           = nodes[node_idx];
     node.is_leaf             = false;
@@ -100,118 +102,384 @@ std::uint32_t build_recursive(std::vector<TreeNode>&  nodes,
 
 template <int Dim>
 void collect_live_indices_in_subtree(const std::vector<TreeNode>& nodes,
-                                     const LeafBucket&            buckets,
-                                     const PointStore<Dim>&       store,
+                                     const LeafBucket&            leaf_buckets,
+                                     const PointStore<Dim>&       points,
                                      std::uint32_t                node_idx,
                                      std::vector<std::uint32_t>&  out) {
     const TreeNode& node = nodes[node_idx];
     if (node.is_leaf) {
-        for (const auto& entry : buckets.view(node.bucket_offset, node.bucket_size)) {
-            if (store.generation(entry.index) != entry.gen || !store.is_live(entry.index)) {
+        for (const auto& entry : leaf_buckets.view(node.bucket_offset, node.bucket_size)) {
+            if (points.generation(entry.index) != entry.gen || !points.is_live(entry.index)) {
                 continue;
             }
             out.push_back(entry.index);
         }
         return;
     }
-    collect_live_indices_in_subtree<Dim>(nodes, buckets, store, node.left,  out);
-    collect_live_indices_in_subtree<Dim>(nodes, buckets, store, node.right, out);
+    collect_live_indices_in_subtree<Dim>(nodes, leaf_buckets, points, node.left, out);
+    collect_live_indices_in_subtree<Dim>(nodes, leaf_buckets, points, node.right, out);
 }
 
-/// Collect live indices under `scapegoat`, build a fresh subtree, and overwrite the scapegoat
-/// node-pool slot so the parent's child pointer remains valid without reparenting.
 template <int Dim>
 void rebuild_subtree_in_place(std::vector<TreeNode>&  nodes,
-                              LeafBucket&             buckets,
+                              LeafBucket&             leaf_buckets,
                               std::vector<BBox<Dim>>& leaf_bboxes,
-                              const PointStore<Dim>&  store,
+                              const PointStore<Dim>&  points,
                               std::size_t             leaf_bucket_size,
                               std::uint32_t           scapegoat) {
     std::vector<std::uint32_t> live_indices;
     live_indices.reserve(nodes[scapegoat].subtree_live_count);
-    collect_live_indices_in_subtree<Dim>(nodes, buckets, store, scapegoat, live_indices);
+    collect_live_indices_in_subtree<Dim>(nodes, leaf_buckets, points, scapegoat, live_indices);
 
     const auto new_subroot_idx = build_recursive<Dim>(nodes,
-                                                      buckets,
+                                                      leaf_buckets,
                                                       leaf_bboxes,
-                                                      store,
+                                                      points,
                                                       leaf_bucket_size,
                                                       live_indices.data(),
                                                       live_indices.data() + live_indices.size());
-    nodes[scapegoat] = nodes[new_subroot_idx];
+    nodes[scapegoat]           = nodes[new_subroot_idx];
 }
 
-/// Recursive top-down sweep: rebuild violators in place; for non-violators recurse into both
-/// children then re-check self once because a child rebuild may have shifted the ratio.
 template <int Dim>
-void sweep(std::vector<TreeNode>&  nodes,
-           LeafBucket&             buckets,
-           std::vector<BBox<Dim>>& leaf_bboxes,
-           const PointStore<Dim>&  store,
-           std::size_t             leaf_bucket_size,
-           float                   alpha,
-           float                   tombstone_threshold,
-           std::uint32_t           node_idx) {
-    if (node_idx == TreeNode::INVALID) return;
+bool is_violator(const std::vector<TreeNode>& nodes,
+                 std::uint32_t                node_idx,
+                 float                        alpha,
+                 float                        tombstone_threshold) {
+    const TreeNode& n = nodes[node_idx];
+    if (n.is_leaf)
+        return false;
+    const auto total = n.subtree_total_count;
+    if (total == 0)
+        return false;
+    const auto left_total  = nodes[n.left].subtree_total_count;
+    const auto right_total = nodes[n.right].subtree_total_count;
+    const auto max_child   = std::max(left_total, right_total);
+    const bool unbalanced  = static_cast<float>(max_child) > alpha * static_cast<float>(total);
+    const bool tombstoned =
+        (total > n.subtree_live_count) &&
+        (static_cast<float>(total - n.subtree_live_count) / static_cast<float>(total) >= tombstone_threshold);
+    return unbalanced || tombstoned;
+}
+
+template <int Dim>
+void sweep_full(std::vector<TreeNode>&  nodes,
+                LeafBucket&             leaf_buckets,
+                std::vector<BBox<Dim>>& leaf_bboxes,
+                const PointStore<Dim>&  points,
+                std::size_t             leaf_bucket_size,
+                float                   alpha,
+                float                   tombstone_threshold,
+                std::uint32_t           node_idx) {
+    if (node_idx == TreeNode::INVALID)
+        return;
 
     if (nodes[node_idx].is_leaf) {
         if (nodes[node_idx].bucket_size > 2 * leaf_bucket_size) {
             rebuild_subtree_in_place<Dim>(
-                nodes, buckets, leaf_bboxes, store, leaf_bucket_size, node_idx);
+                nodes, leaf_buckets, leaf_bboxes, points, leaf_bucket_size, node_idx);
         }
         return;
     }
 
-    auto is_violator = [&](std::uint32_t idx) -> bool {
-        const TreeNode& n = nodes[idx];
-        if (n.is_leaf) return false;
-        const auto total = n.subtree_total_count;
-        if (total == 0) return false;
-        const auto left_total  = nodes[n.left].subtree_total_count;
-        const auto right_total = nodes[n.right].subtree_total_count;
-        const auto max_child   = std::max(left_total, right_total);
-        const bool unbalanced =
-            static_cast<float>(max_child) > alpha * static_cast<float>(total);
-        const bool tombstoned =
-            (total > n.subtree_live_count)
-            && (static_cast<float>(total - n.subtree_live_count) / static_cast<float>(total)
-                >= tombstone_threshold);
-        return unbalanced || tombstoned;
-    };
-
-    if (is_violator(node_idx)) {
-        rebuild_subtree_in_place<Dim>(
-            nodes, buckets, leaf_bboxes, store, leaf_bucket_size, node_idx);
+    if (is_violator<Dim>(nodes, node_idx, alpha, tombstone_threshold)) {
+        rebuild_subtree_in_place<Dim>(nodes, leaf_buckets, leaf_bboxes, points, leaf_bucket_size, node_idx);
         return;
     }
 
     const auto left  = nodes[node_idx].left;
     const auto right = nodes[node_idx].right;
-    sweep<Dim>(
-        nodes, buckets, leaf_bboxes, store, leaf_bucket_size, alpha, tombstone_threshold, left);
-    sweep<Dim>(
-        nodes, buckets, leaf_bboxes, store, leaf_bucket_size, alpha, tombstone_threshold, right);
+    sweep_full<Dim>(
+        nodes, leaf_buckets, leaf_bboxes, points, leaf_bucket_size, alpha, tombstone_threshold, left);
+    sweep_full<Dim>(
+        nodes, leaf_buckets, leaf_bboxes, points, leaf_bucket_size, alpha, tombstone_threshold, right);
 
-    // Post-children re-check: a child rebuild may have shifted this node's left/right ratio
-    // or its own live/total ratio. At most one rebuild here; do not recurse again.
-    if (is_violator(node_idx)) {
-        rebuild_subtree_in_place<Dim>(
-            nodes, buckets, leaf_bboxes, store, leaf_bucket_size, node_idx);
+    if (is_violator<Dim>(nodes, node_idx, alpha, tombstone_threshold)) {
+        rebuild_subtree_in_place<Dim>(nodes, leaf_buckets, leaf_bboxes, points, leaf_bucket_size, node_idx);
     }
+}
+
+template <int Dim>
+void sweep_scoped(std::vector<TreeNode>&            nodes,
+                  LeafBucket&                       leaf_buckets,
+                  std::vector<BBox<Dim>>&           leaf_bboxes,
+                  const PointStore<Dim>&            points,
+                  std::size_t                       leaf_bucket_size,
+                  float                             alpha,
+                  float                             tombstone_threshold,
+                  const std::vector<std::uint32_t>& dirty,
+                  std::uint32_t                     node_idx) {
+    if (node_idx == TreeNode::INVALID)
+        return;
+
+    if (nodes[node_idx].is_leaf) {
+        if (nodes[node_idx].bucket_size > 2 * leaf_bucket_size) {
+            rebuild_subtree_in_place<Dim>(
+                nodes, leaf_buckets, leaf_bboxes, points, leaf_bucket_size, node_idx);
+        }
+        return;
+    }
+
+    if (is_violator<Dim>(nodes, node_idx, alpha, tombstone_threshold)) {
+        rebuild_subtree_in_place<Dim>(nodes, leaf_buckets, leaf_bboxes, points, leaf_bucket_size, node_idx);
+        return;
+    }
+
+    const auto left  = nodes[node_idx].left;
+    const auto right = nodes[node_idx].right;
+    if (std::binary_search(dirty.begin(), dirty.end(), left)) {
+        sweep_scoped<Dim>(nodes,
+                          leaf_buckets,
+                          leaf_bboxes,
+                          points,
+                          leaf_bucket_size,
+                          alpha,
+                          tombstone_threshold,
+                          dirty,
+                          left);
+    }
+    if (std::binary_search(dirty.begin(), dirty.end(), right)) {
+        sweep_scoped<Dim>(nodes,
+                          leaf_buckets,
+                          leaf_bboxes,
+                          points,
+                          leaf_bucket_size,
+                          alpha,
+                          tombstone_threshold,
+                          dirty,
+                          right);
+    }
+
+    if (is_violator<Dim>(nodes, node_idx, alpha, tombstone_threshold)) {
+        rebuild_subtree_in_place<Dim>(nodes, leaf_buckets, leaf_bboxes, points, leaf_bucket_size, node_idx);
+    }
+}
+
+template <int Dim>
+std::size_t release_subtree(std::vector<TreeNode>& nodes,
+                            const LeafBucket&      leaf_buckets,
+                            PointStore<Dim>&       points,
+                            std::uint32_t          node_idx) {
+    TreeNode&   node    = nodes[node_idx];
+    std::size_t cleared = 0;
+    if (node.is_leaf) {
+        for (const auto& entry : leaf_buckets.view(node.bucket_offset, node.bucket_size)) {
+            if (points.generation(entry.index) != entry.gen || !points.is_live(entry.index)) {
+                continue;
+            }
+            points.release(entry.index);
+            ++cleared;
+        }
+    } else {
+        cleared += release_subtree<Dim>(nodes, leaf_buckets, points, node.left);
+        cleared += release_subtree<Dim>(nodes, leaf_buckets, points, node.right);
+    }
+    node.subtree_live_count -= static_cast<std::uint32_t>(cleared);
+    return cleared;
+}
+
+template <int Dim>
+std::size_t delete_in_box_leaf(const TreeNode&               node,
+                               const LeafBucket&             leaf_buckets,
+                               PointStore<Dim>&              points,
+                               const detail::PointType<Dim>& min_corner,
+                               const detail::PointType<Dim>& max_corner) {
+    std::size_t cleared = 0;
+    for (const auto& entry : leaf_buckets.view(node.bucket_offset, node.bucket_size)) {
+        if (points.generation(entry.index) != entry.gen || !points.is_live(entry.index)) {
+            continue;
+        }
+        const auto& point = points.point(entry.index);
+        if ((point.array() >= min_corner.array()).all() && (point.array() <= max_corner.array()).all()) {
+            points.release(entry.index);
+            ++cleared;
+        }
+    }
+    return cleared;
+}
+
+template <int Dim>
+bool box_disjoint(const BBox<Dim>&              partition,
+                  const detail::PointType<Dim>& min_corner,
+                  const detail::PointType<Dim>& max_corner) {
+    return (partition.max_corner.array() < min_corner.array()).any() ||
+           (partition.min_corner.array() > max_corner.array()).any();
+}
+
+template <int Dim>
+bool box_contained(const BBox<Dim>&              partition,
+                   const detail::PointType<Dim>& min_corner,
+                   const detail::PointType<Dim>& max_corner) {
+    return (partition.min_corner.array() >= min_corner.array()).all() &&
+           (partition.max_corner.array() <= max_corner.array()).all();
+}
+
+template <int Dim>
+std::size_t delete_in_box_recurse(std::vector<TreeNode>&        nodes,
+                                  const LeafBucket&             leaf_buckets,
+                                  const std::vector<BBox<Dim>>& leaf_bboxes,
+                                  PointStore<Dim>&              points,
+                                  std::uint32_t                 node_idx,
+                                  BBox<Dim>                     partition,
+                                  const detail::PointType<Dim>& min_corner,
+                                  const detail::PointType<Dim>& max_corner,
+                                  std::vector<std::uint32_t>&   modified) {
+    if (box_disjoint<Dim>(partition, min_corner, max_corner)) {
+        return 0;
+    }
+    if (box_contained<Dim>(partition, min_corner, max_corner)) {
+        const std::size_t cleared = release_subtree<Dim>(nodes, leaf_buckets, points, node_idx);
+        if (cleared != 0) {
+            modified.push_back(node_idx); // counts dropped to 0 → trigger must re-check this subtree
+        }
+        return cleared;
+    }
+
+    TreeNode&   node    = nodes[node_idx];
+    std::size_t cleared = 0;
+    if (node.is_leaf) {
+        // Tight leaf BBox refines the loose partition box before per-point checks. Leaves are not
+        // violator-checked by deletes (no bucket growth), so ancestors carry the trigger record.
+        const BBox<Dim>& leaf_bbox = leaf_bboxes[node.leaf_bbox_idx];
+        if (box_disjoint<Dim>(leaf_bbox, min_corner, max_corner)) {
+            return 0;
+        }
+        if (box_contained<Dim>(leaf_bbox, min_corner, max_corner)) {
+            cleared = release_subtree<Dim>(nodes, leaf_buckets, points, node_idx);
+            return cleared;
+        }
+        cleared = delete_in_box_leaf<Dim>(node, leaf_buckets, points, min_corner, max_corner);
+        node.subtree_live_count -= static_cast<std::uint32_t>(cleared);
+        return cleared;
+    }
+
+    const auto  dim   = node.split_dim;
+    const float split = node.split_value;
+    const auto  left  = node.left;
+    const auto  right = node.right;
+
+    BBox<Dim> left_box       = partition;
+    left_box.max_corner[dim] = std::min(left_box.max_corner[dim], split);
+    cleared += delete_in_box_recurse<Dim>(
+        nodes, leaf_buckets, leaf_bboxes, points, left, left_box, min_corner, max_corner, modified);
+
+    BBox<Dim> right_box       = partition;
+    right_box.min_corner[dim] = std::max(right_box.min_corner[dim], split);
+    cleared += delete_in_box_recurse<Dim>(
+        nodes, leaf_buckets, leaf_bboxes, points, right, right_box, min_corner, max_corner, modified);
+
+    nodes[node_idx].subtree_live_count -= static_cast<std::uint32_t>(cleared);
+    if (cleared != 0) {
+        modified.push_back(node_idx);
+    }
+    return cleared;
+}
+
+template <int Dim>
+float box_nearest_sq_dist(const BBox<Dim>& partition, const detail::PointType<Dim>& center) {
+    const auto below = (partition.min_corner.array() - center.array()).max(0.0f);
+    const auto above = (center.array() - partition.max_corner.array()).max(0.0f);
+    return (below.square() + above.square()).sum();
+}
+
+template <int Dim>
+float box_farthest_sq_dist(const BBox<Dim>& partition, const detail::PointType<Dim>& center) {
+    const auto to_min = (center.array() - partition.min_corner.array()).abs();
+    const auto to_max = (center.array() - partition.max_corner.array()).abs();
+    return to_min.max(to_max).square().sum();
+}
+
+template <int Dim>
+std::size_t delete_outside_radius_leaf(const TreeNode&               node,
+                                       const LeafBucket&             leaf_buckets,
+                                       PointStore<Dim>&              points,
+                                       const detail::PointType<Dim>& center,
+                                       float                         sq_radius) {
+    std::size_t cleared = 0;
+    for (const auto& entry : leaf_buckets.view(node.bucket_offset, node.bucket_size)) {
+        if (points.generation(entry.index) != entry.gen || !points.is_live(entry.index)) {
+            continue;
+        }
+        if ((points.point(entry.index) - center).squaredNorm() > sq_radius) {
+            points.release(entry.index);
+            ++cleared;
+        }
+    }
+    return cleared;
+}
+
+template <int Dim>
+std::size_t delete_outside_radius_recurse(std::vector<TreeNode>&        nodes,
+                                          const LeafBucket&             leaf_buckets,
+                                          const std::vector<BBox<Dim>>& leaf_bboxes,
+                                          PointStore<Dim>&              points,
+                                          std::uint32_t                 node_idx,
+                                          BBox<Dim>                     partition,
+                                          const detail::PointType<Dim>& center,
+                                          float                         sq_radius,
+                                          std::vector<std::uint32_t>&   modified) {
+    // Partition fully inside the sphere: every point is within r, keep all.
+    if (box_farthest_sq_dist<Dim>(partition, center) <= sq_radius) {
+        return 0;
+    }
+    // Partition fully outside the sphere: every point is strictly outside, release all.
+    if (box_nearest_sq_dist<Dim>(partition, center) > sq_radius) {
+        const std::size_t cleared = release_subtree<Dim>(nodes, leaf_buckets, points, node_idx);
+        if (cleared != 0) {
+            modified.push_back(node_idx);
+        }
+        return cleared;
+    }
+
+    TreeNode&   node    = nodes[node_idx];
+    std::size_t cleared = 0;
+    if (node.is_leaf) {
+        const BBox<Dim>& leaf_bbox = leaf_bboxes[node.leaf_bbox_idx];
+        if (box_farthest_sq_dist<Dim>(leaf_bbox, center) <= sq_radius) {
+            return 0;
+        }
+        if (box_nearest_sq_dist<Dim>(leaf_bbox, center) > sq_radius) {
+            return release_subtree<Dim>(nodes, leaf_buckets, points, node_idx);
+        }
+        cleared = delete_outside_radius_leaf<Dim>(node, leaf_buckets, points, center, sq_radius);
+        node.subtree_live_count -= static_cast<std::uint32_t>(cleared);
+        return cleared;
+    }
+
+    const auto  dim   = node.split_dim;
+    const float split = node.split_value;
+    const auto  left  = node.left;
+    const auto  right = node.right;
+
+    BBox<Dim> left_box       = partition;
+    left_box.max_corner[dim] = std::min(left_box.max_corner[dim], split);
+    cleared += delete_outside_radius_recurse<Dim>(
+        nodes, leaf_buckets, leaf_bboxes, points, left, left_box, center, sq_radius, modified);
+
+    BBox<Dim> right_box       = partition;
+    right_box.min_corner[dim] = std::max(right_box.min_corner[dim], split);
+    cleared += delete_outside_radius_recurse<Dim>(
+        nodes, leaf_buckets, leaf_bboxes, points, right, right_box, center, sq_radius, modified);
+
+    nodes[node_idx].subtree_live_count -= static_cast<std::uint32_t>(cleared);
+    if (cleared != 0) {
+        modified.push_back(node_idx);
+    }
+    return cleared;
 }
 
 } // namespace
 
 template <int Dim>
-TreeBuilder<Dim>::TreeBuilder(std::vector<TreeNode>&   node_pool,
-                              LeafBucket&              leaf_buckets,
-                              std::vector<BBox<Dim>>&  leaf_bboxes,
-                              BBox<Dim>&               root_bbox,
-                              const PointStore<Dim>&   points,
-                              std::size_t              leaf_bucket_size,
-                              float                    alpha,
-                              float                    tombstone_threshold)
-    : node_pool_(node_pool)
+TreeBuilder<Dim>::TreeBuilder(std::vector<TreeNode>&  nodes,
+                              LeafBucket&             leaf_buckets,
+                              std::vector<BBox<Dim>>& leaf_bboxes,
+                              BBox<Dim>&              root_bbox,
+                              PointStore<Dim>&        points,
+                              std::size_t             leaf_bucket_size,
+                              float                   alpha,
+                              float                   tombstone_threshold)
+    : nodes_(nodes)
     , leaf_buckets_(leaf_buckets)
     , leaf_bboxes_(leaf_bboxes)
     , root_bbox_(root_bbox)
@@ -222,17 +490,18 @@ TreeBuilder<Dim>::TreeBuilder(std::vector<TreeNode>&   node_pool,
 
 template <int Dim>
 std::uint32_t TreeBuilder<Dim>::rebuild(std::span<std::uint32_t> live_indices) {
+    modified_nodes_.clear(); // node indices become stale after a from-scratch rebuild
     if (live_indices.empty()) {
         return TreeNode::INVALID;
     }
     root_bbox_.min_corner.setConstant(std::numeric_limits<float>::infinity());
     root_bbox_.max_corner.setConstant(-std::numeric_limits<float>::infinity());
     for (auto idx : live_indices) {
-        const auto& point    = points_.point(idx);
+        const auto& point     = points_.point(idx);
         root_bbox_.min_corner = root_bbox_.min_corner.cwiseMin(point);
         root_bbox_.max_corner = root_bbox_.max_corner.cwiseMax(point);
     }
-    return build_recursive<Dim>(node_pool_,
+    return build_recursive<Dim>(nodes_,
                                 leaf_buckets_,
                                 leaf_bboxes_,
                                 points_,
@@ -243,35 +512,70 @@ std::uint32_t TreeBuilder<Dim>::rebuild(std::span<std::uint32_t> live_indices) {
 
 template <int Dim>
 void TreeBuilder<Dim>::maybe_partial_rebuild(std::uint32_t current_root) {
-    if (current_root == TreeNode::INVALID) return;
-    sweep<Dim>(node_pool_,
-               leaf_buckets_,
-               leaf_bboxes_,
-               points_,
-               leaf_bucket_size_,
-               alpha_,
-               tombstone_threshold_,
-               current_root);
+    if (current_root == TreeNode::INVALID || modified_nodes_.empty()) {
+        modified_nodes_.clear();
+        return;
+    }
+    // Dense mutations (large batch inserts) record a touched node per point-path, dwarfing the node
+    // count; there a full sweep beats sort + scoped walk. Sparse deletes record a node per touched
+    // subtree, so the scoped walk pays off. Route on the raw record count vs. the node pool size.
+    if (modified_nodes_.size() >= nodes_.size()) {
+        sweep_full<Dim>(nodes_,
+                        leaf_buckets_,
+                        leaf_bboxes_,
+                        points_,
+                        leaf_bucket_size_,
+                        alpha_,
+                        tombstone_threshold_,
+                        current_root);
+    } else {
+        std::sort(modified_nodes_.begin(), modified_nodes_.end());
+        modified_nodes_.erase(std::unique(modified_nodes_.begin(), modified_nodes_.end()),
+                              modified_nodes_.end());
+        sweep_scoped<Dim>(nodes_,
+                          leaf_buckets_,
+                          leaf_bboxes_,
+                          points_,
+                          leaf_bucket_size_,
+                          alpha_,
+                          tombstone_threshold_,
+                          modified_nodes_,
+                          current_root);
+    }
+    modified_nodes_.clear();
 }
 
+template <int Dim>
+void TreeBuilder<Dim>::maybe_partial_rebuild_full(std::uint32_t current_root) {
+    modified_nodes_.clear();
+    if (current_root == TreeNode::INVALID) {
+        return;
+    }
+    sweep_full<Dim>(nodes_,
+                    leaf_buckets_,
+                    leaf_bboxes_,
+                    points_,
+                    leaf_bucket_size_,
+                    alpha_,
+                    tombstone_threshold_,
+                    current_root);
+}
 
 template <int Dim>
 void TreeBuilder<Dim>::insert_index(std::uint32_t root, std::uint32_t index) {
-    const auto& point = points_.point(index);
+    const auto& point     = points_.point(index);
     root_bbox_.min_corner = root_bbox_.min_corner.cwiseMin(point);
     root_bbox_.max_corner = root_bbox_.max_corner.cwiseMax(point);
 
     std::uint32_t node_idx = root;
     while (true) {
-        TreeNode& node = node_pool_[node_idx];
+        TreeNode& node = nodes_[node_idx];
         ++node.subtree_total_count;
         ++node.subtree_live_count;
         if (node.is_leaf) {
             const BucketEntry entry{index, points_.generation(index)};
-            const bool        ok = leaf_buckets_.push(node.bucket_offset,
-                                               node.bucket_size,
-                                               node.bucket_capacity,
-                                               entry);
+            const bool        ok =
+                leaf_buckets_.push(node.bucket_offset, node.bucket_size, node.bucket_capacity, entry);
             assert(ok && "LeafBucket::push failed despite eager split");
             (void)ok;
             auto& bbox      = leaf_bboxes_[node.leaf_bbox_idx];
@@ -280,12 +584,8 @@ void TreeBuilder<Dim>::insert_index(std::uint32_t root, std::uint32_t index) {
             // Proactive split: a leaf that just reached its 2B cap is split now so a
             // same-batch insert routing here lands in one of the new children.
             if (node.bucket_size == node.bucket_capacity) {
-                rebuild_subtree_in_place<Dim>(node_pool_,
-                                              leaf_buckets_,
-                                              leaf_bboxes_,
-                                              points_,
-                                              leaf_bucket_size_,
-                                              node_idx);
+                rebuild_subtree_in_place<Dim>(
+                    nodes_, leaf_buckets_, leaf_bboxes_, points_, leaf_bucket_size_, node_idx);
             }
             return;
         }
@@ -298,13 +598,40 @@ void TreeBuilder<Dim>::tombstone_index(std::uint32_t root, std::uint32_t index) 
     const auto&   point    = points_.point(index);
     std::uint32_t node_idx = root;
     while (true) {
-        TreeNode& node = node_pool_[node_idx];
+        TreeNode& node = nodes_[node_idx];
         --node.subtree_live_count;
         if (node.is_leaf) {
             return;
         }
+        modified_nodes_.push_back(node_idx);
         node_idx = (point[node.split_dim] < node.split_value) ? node.left : node.right;
     }
+}
+
+template <int Dim>
+std::size_t
+TreeBuilder<Dim>::delete_in_box(std::uint32_t root, const Point& min_corner, const Point& max_corner) {
+    if (root == TreeNode::INVALID) {
+        return 0;
+    }
+    return delete_in_box_recurse<Dim>(nodes_,
+                                      leaf_buckets_,
+                                      leaf_bboxes_,
+                                      points_,
+                                      root,
+                                      root_bbox_,
+                                      min_corner,
+                                      max_corner,
+                                      modified_nodes_);
+}
+
+template <int Dim>
+std::size_t TreeBuilder<Dim>::delete_outside_radius(std::uint32_t root, const Point& center, float r) {
+    if (root == TreeNode::INVALID) {
+        return 0;
+    }
+    return delete_outside_radius_recurse<Dim>(
+        nodes_, leaf_buckets_, leaf_bboxes_, points_, root, root_bbox_, center, r * r, modified_nodes_);
 }
 
 template class TreeBuilder<2>;

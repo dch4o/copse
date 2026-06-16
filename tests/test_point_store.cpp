@@ -143,9 +143,9 @@ SCENARIO("PointStore<3>::generation bumps on every slot reuse", "[point_store][g
         }
 
         WHEN("a slot is acquired (normal branch, store not full)") {
-            const auto i0 = store.acquire(P3f{0, 0, 0});
+            const auto i0                = store.acquire(P3f{0, 0, 0});
             const auto gen_after_acquire = store.generation(i0);
-            const auto i1 = store.acquire(P3f{1, 1, 1});
+            const auto i1                = store.acquire(P3f{1, 1, 1});
 
             THEN("the assigned slot's gen bumped from 0 to 1 on first acquire") {
                 REQUIRE(gen_after_acquire == 1);
@@ -155,7 +155,7 @@ SCENARIO("PointStore<3>::generation bumps on every slot reuse", "[point_store][g
             AND_WHEN("the slot is released and re-acquired (normal branch reuse)") {
                 store.release(i0);
                 const auto gen_after_release = store.generation(i0);
-                const auto i0_reacquired = store.acquire(P3f{9, 9, 9});
+                const auto i0_reacquired     = store.acquire(P3f{9, 9, 9});
 
                 THEN("release does NOT bump the gen but re-acquire does") {
                     REQUIRE(gen_after_release == 1);

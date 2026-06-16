@@ -1,6 +1,7 @@
 #include "topiary/impl/search_kernel.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <limits>
 #include <vector>
@@ -22,18 +23,18 @@ struct HeapCompare {
 
 template <int Dim>
 void scan_leaf(const TreeNode&                          node,
-               const LeafBucket&                        buckets,
-               const PointStore<Dim>&                   store,
+               const LeafBucket&                        leaf_buckets,
+               const PointStore<Dim>&                   points,
                const typename SearchKernel<Dim>::Point& query,
                std::size_t                              k_max,
                std::vector<HeapEntry>&                  heap,
                float&                                   worst_sq_dist) {
-    const auto slice = buckets.view(node.bucket_offset, node.bucket_size);
+    const auto slice = leaf_buckets.view(node.bucket_offset, node.bucket_size);
     for (const auto& entry : slice) {
-        if (store.generation(entry.index) != entry.gen || !store.is_live(entry.index)) {
+        if (points.generation(entry.index) != entry.gen || !points.is_live(entry.index)) {
             continue;
         }
-        const float sq_dist = (store.point(entry.index) - query).squaredNorm();
+        const float sq_dist = (points.point(entry.index) - query).squaredNorm();
         if (sq_dist >= worst_sq_dist) {
             continue;
         }
@@ -51,19 +52,21 @@ void scan_leaf(const TreeNode&                          node,
 
 template <int Dim>
 void descend(const std::vector<TreeNode>&             nodes,
-             const LeafBucket&                        buckets,
-             const PointStore<Dim>&                   store,
+             const LeafBucket&                        leaf_buckets,
+             const PointStore<Dim>&                   points,
              std::uint32_t                            node_idx,
              const typename SearchKernel<Dim>::Point& query,
              std::size_t                              k_max,
              std::vector<HeapEntry>&                  heap,
-             float&                                   worst_sq_dist) {
+             float&                                   worst_sq_dist,
+             std::array<float, Dim>&                  min_sq_axis_dist,
+             float                                    min_sq_dist) {
     if (node_idx == TreeNode::INVALID) {
         return;
     }
     const TreeNode& node = nodes[node_idx];
     if (node.is_leaf) {
-        scan_leaf<Dim>(node, buckets, store, query, k_max, heap, worst_sq_dist);
+        scan_leaf<Dim>(node, leaf_buckets, points, query, k_max, heap, worst_sq_dist);
         return;
     }
     const auto  dim        = node.split_dim;
@@ -72,26 +75,50 @@ void descend(const std::vector<TreeNode>&             nodes,
     const auto  near_child = (diff < 0.0f) ? node.left : node.right;
     const auto  far_child  = (diff < 0.0f) ? node.right : node.left;
 
-    descend<Dim>(nodes, buckets, store, near_child, query, k_max, heap, worst_sq_dist);
-    const float sq_gap = diff * diff;
-    if (heap.size() < k_max || sq_gap < worst_sq_dist) {
-        descend<Dim>(nodes, buckets, store, far_child, query, k_max, heap, worst_sq_dist);
+    descend<Dim>(nodes,
+                 leaf_buckets,
+                 points,
+                 near_child,
+                 query,
+                 k_max,
+                 heap,
+                 worst_sq_dist,
+                 min_sq_axis_dist,
+                 min_sq_dist);
+
+    // Entering the far child crosses the split plane on `dim`: replace that
+    // axis's contribution with diff^2 and re-test the box lower bound.
+    const float far_min_sq_dist = min_sq_dist - min_sq_axis_dist[dim] + diff * diff;
+    if (far_min_sq_dist < worst_sq_dist) {
+        const float saved_axis_dist = min_sq_axis_dist[dim];
+        min_sq_axis_dist[dim]       = diff * diff;
+        descend<Dim>(nodes,
+                     leaf_buckets,
+                     points,
+                     far_child,
+                     query,
+                     k_max,
+                     heap,
+                     worst_sq_dist,
+                     min_sq_axis_dist,
+                     far_min_sq_dist);
+        min_sq_axis_dist[dim] = saved_axis_dist;
     }
 }
 
 template <int Dim>
 void collect_leaf(const TreeNode&                          node,
-                  const LeafBucket&                        buckets,
-                  const PointStore<Dim>&                   store,
+                  const LeafBucket&                        leaf_buckets,
+                  const PointStore<Dim>&                   points,
                   const typename SearchKernel<Dim>::Point& query,
                   float                                    sq_radius,
                   std::vector<std::uint32_t>&              matches) {
-    const auto slice = buckets.view(node.bucket_offset, node.bucket_size);
+    const auto slice = leaf_buckets.view(node.bucket_offset, node.bucket_size);
     for (const auto& entry : slice) {
-        if (store.generation(entry.index) != entry.gen || !store.is_live(entry.index)) {
+        if (points.generation(entry.index) != entry.gen || !points.is_live(entry.index)) {
             continue;
         }
-        const float sq_dist = (store.point(entry.index) - query).squaredNorm();
+        const float sq_dist = (points.point(entry.index) - query).squaredNorm();
         if (sq_dist < sq_radius) {
             matches.push_back(entry.index);
         }
@@ -100,8 +127,8 @@ void collect_leaf(const TreeNode&                          node,
 
 template <int Dim>
 void collect_descend(const std::vector<TreeNode>&             nodes,
-                     const LeafBucket&                        buckets,
-                     const PointStore<Dim>&                   store,
+                     const LeafBucket&                        leaf_buckets,
+                     const PointStore<Dim>&                   points,
                      std::uint32_t                            node_idx,
                      const typename SearchKernel<Dim>::Point& query,
                      float                                    sq_radius,
@@ -111,7 +138,7 @@ void collect_descend(const std::vector<TreeNode>&             nodes,
     }
     const TreeNode& node = nodes[node_idx];
     if (node.is_leaf) {
-        collect_leaf<Dim>(node, buckets, store, query, sq_radius, matches);
+        collect_leaf<Dim>(node, leaf_buckets, points, query, sq_radius, matches);
         return;
     }
     const auto  dim        = node.split_dim;
@@ -120,24 +147,24 @@ void collect_descend(const std::vector<TreeNode>&             nodes,
     const auto  near_child = (diff < 0.0f) ? node.left : node.right;
     const auto  far_child  = (diff < 0.0f) ? node.right : node.left;
 
-    collect_descend<Dim>(nodes, buckets, store, near_child, query, sq_radius, matches);
+    collect_descend<Dim>(nodes, leaf_buckets, points, near_child, query, sq_radius, matches);
     if (diff * diff < sq_radius) {
-        collect_descend<Dim>(nodes, buckets, store, far_child, query, sq_radius, matches);
+        collect_descend<Dim>(nodes, leaf_buckets, points, far_child, query, sq_radius, matches);
     }
 }
 
 template <int Dim>
 bool any_within_leaf(const TreeNode&                          node,
-                     const LeafBucket&                        buckets,
-                     const PointStore<Dim>&                   store,
+                     const LeafBucket&                        leaf_buckets,
+                     const PointStore<Dim>&                   points,
                      const typename SearchKernel<Dim>::Point& query,
                      float                                    sq_radius) {
-    const auto slice = buckets.view(node.bucket_offset, node.bucket_size);
+    const auto slice = leaf_buckets.view(node.bucket_offset, node.bucket_size);
     for (const auto& entry : slice) {
-        if (store.generation(entry.index) != entry.gen || !store.is_live(entry.index)) {
+        if (points.generation(entry.index) != entry.gen || !points.is_live(entry.index)) {
             continue;
         }
-        const float sq_dist = (store.point(entry.index) - query).squaredNorm();
+        const float sq_dist = (points.point(entry.index) - query).squaredNorm();
         if (sq_dist < sq_radius) {
             return true;
         }
@@ -147,8 +174,8 @@ bool any_within_leaf(const TreeNode&                          node,
 
 template <int Dim>
 bool any_within_descend(const std::vector<TreeNode>&             nodes,
-                        const LeafBucket&                        buckets,
-                        const PointStore<Dim>&                   store,
+                        const LeafBucket&                        leaf_buckets,
+                        const PointStore<Dim>&                   points,
                         std::uint32_t                            node_idx,
                         const typename SearchKernel<Dim>::Point& query,
                         float                                    sq_radius) {
@@ -157,7 +184,7 @@ bool any_within_descend(const std::vector<TreeNode>&             nodes,
     }
     const TreeNode& node = nodes[node_idx];
     if (node.is_leaf) {
-        return any_within_leaf<Dim>(node, buckets, store, query, sq_radius);
+        return any_within_leaf<Dim>(node, leaf_buckets, points, query, sq_radius);
     }
     const auto  dim        = node.split_dim;
     const float split      = node.split_value;
@@ -165,11 +192,11 @@ bool any_within_descend(const std::vector<TreeNode>&             nodes,
     const auto  near_child = (diff < 0.0f) ? node.left : node.right;
     const auto  far_child  = (diff < 0.0f) ? node.right : node.left;
 
-    if (any_within_descend<Dim>(nodes, buckets, store, near_child, query, sq_radius)) {
+    if (any_within_descend<Dim>(nodes, leaf_buckets, points, near_child, query, sq_radius)) {
         return true;
     }
     if (diff * diff < sq_radius) {
-        return any_within_descend<Dim>(nodes, buckets, store, far_child, query, sq_radius);
+        return any_within_descend<Dim>(nodes, leaf_buckets, points, far_child, query, sq_radius);
     }
     return false;
 }
@@ -177,10 +204,10 @@ bool any_within_descend(const std::vector<TreeNode>&             nodes,
 } // namespace
 
 template <int Dim>
-SearchKernel<Dim>::SearchKernel(const std::vector<TreeNode>& node_pool,
+SearchKernel<Dim>::SearchKernel(const std::vector<TreeNode>& nodes,
                                 const LeafBucket&            leaf_buckets,
                                 const PointStore<Dim>&       points)
-    : node_pool_(node_pool), leaf_buckets_(leaf_buckets), points_(points) {}
+    : nodes_(nodes), leaf_buckets_(leaf_buckets), points_(points) {}
 
 template <int Dim>
 auto SearchKernel<Dim>::search(std::uint32_t root,
@@ -195,7 +222,9 @@ auto SearchKernel<Dim>::search(std::uint32_t root,
     heap.reserve(k_max == std::numeric_limits<std::size_t>::max() ? 16 : k_max + 1);
     float worst_sq_dist = initial_sq_radius;
 
-    descend<Dim>(node_pool_, leaf_buckets_, points_, root, query, k_max, heap, worst_sq_dist);
+    std::array<float, Dim> min_sq_axis_dist{};
+    descend<Dim>(
+        nodes_, leaf_buckets_, points_, root, query, k_max, heap, worst_sq_dist, min_sq_axis_dist, 0.0f);
 
     std::sort(heap.begin(), heap.end(), [](const HeapEntry& lhs, const HeapEntry& rhs) {
         return lhs.sq_dist < rhs.sq_dist;
@@ -216,7 +245,7 @@ auto SearchKernel<Dim>::collect_indices_within(std::uint32_t root, const Point& 
     if (root == TreeNode::INVALID) {
         return result;
     }
-    collect_descend<Dim>(node_pool_, leaf_buckets_, points_, root, query, sq_radius, result);
+    collect_descend<Dim>(nodes_, leaf_buckets_, points_, root, query, sq_radius, result);
     return result;
 }
 
@@ -225,7 +254,7 @@ bool SearchKernel<Dim>::any_within(std::uint32_t root, const Point& query, float
     if (root == TreeNode::INVALID) {
         return false;
     }
-    return any_within_descend<Dim>(node_pool_, leaf_buckets_, points_, root, query, sq_radius);
+    return any_within_descend<Dim>(nodes_, leaf_buckets_, points_, root, query, sq_radius);
 }
 
 template class SearchKernel<2>;
