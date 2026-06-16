@@ -106,16 +106,15 @@ auto KDTreeImpl<Dim>::hybrid_search(const Point& query, std::size_t k, float rad
 }
 
 template <int Dim>
-std::size_t KDTreeImpl<Dim>::delete_in_box(const Point& min_corner, const Point& max_corner) {
-    const BBox<Dim> box{min_corner, max_corner};
-    return delete_in_boxes(std::span<const BBox<Dim>>(&box, 1));
+std::size_t KDTreeImpl<Dim>::delete_box(const BBox<Dim>& box) {
+    return delete_boxes(std::span<const BBox<Dim>>(&box, 1));
 }
 
 template <int Dim>
-std::size_t KDTreeImpl<Dim>::delete_in_boxes(std::span<const BBox<Dim>> boxes) {
+std::size_t KDTreeImpl<Dim>::delete_boxes(std::span<const BBox<Dim>> boxes) {
     std::size_t cleared = 0;
     for (const auto& box : boxes) {
-        cleared += builder_.delete_in_box(root_, box.min_corner, box.max_corner);
+        cleared += builder_.delete_box(root_, box);
     }
     if (cleared > 0) {
         builder_.maybe_partial_rebuild(root_);

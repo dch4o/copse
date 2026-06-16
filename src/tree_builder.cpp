@@ -10,6 +10,8 @@
 
 namespace topiary::internal {
 
+static_assert(sizeof(TreeNode) == 32, "TreeNode must stay 32 B for cache density on descent");
+
 namespace {
 
 template <int Dim>
@@ -279,7 +281,7 @@ std::size_t release_subtree(std::vector<TreeNode>& nodes,
 }
 
 template <int Dim>
-std::size_t delete_in_box_leaf(const TreeNode&               node,
+std::size_t delete_box_leaf(const TreeNode&               node,
                                const LeafBucket&             leaf_buckets,
                                PointStore<Dim>&              points,
                                const detail::PointType<Dim>& min_corner,
@@ -315,7 +317,7 @@ bool box_contained(const BBox<Dim>&              partition,
 }
 
 template <int Dim>
-std::size_t delete_in_box_recurse(std::vector<TreeNode>&        nodes,
+std::size_t delete_box_recurse(std::vector<TreeNode>&        nodes,
                                   const LeafBucket&             leaf_buckets,
                                   const std::vector<BBox<Dim>>& leaf_bboxes,
                                   PointStore<Dim>&              points,
@@ -348,7 +350,7 @@ std::size_t delete_in_box_recurse(std::vector<TreeNode>&        nodes,
             cleared = release_subtree<Dim>(nodes, leaf_buckets, points, node_idx);
             return cleared;
         }
-        cleared = delete_in_box_leaf<Dim>(node, leaf_buckets, points, min_corner, max_corner);
+        cleared = delete_box_leaf<Dim>(node, leaf_buckets, points, min_corner, max_corner);
         node.subtree_live_count -= static_cast<std::uint32_t>(cleared);
         return cleared;
     }
@@ -360,12 +362,12 @@ std::size_t delete_in_box_recurse(std::vector<TreeNode>&        nodes,
 
     BBox<Dim> left_box       = partition;
     left_box.max_corner[dim] = std::min(left_box.max_corner[dim], split);
-    cleared += delete_in_box_recurse<Dim>(
+    cleared += delete_box_recurse<Dim>(
         nodes, leaf_buckets, leaf_bboxes, points, left, left_box, min_corner, max_corner, modified);
 
     BBox<Dim> right_box       = partition;
     right_box.min_corner[dim] = std::max(right_box.min_corner[dim], split);
-    cleared += delete_in_box_recurse<Dim>(
+    cleared += delete_box_recurse<Dim>(
         nodes, leaf_buckets, leaf_bboxes, points, right, right_box, min_corner, max_corner, modified);
 
     nodes[node_idx].subtree_live_count -= static_cast<std::uint32_t>(cleared);
@@ -609,19 +611,18 @@ void TreeBuilder<Dim>::tombstone_index(std::uint32_t root, std::uint32_t index) 
 }
 
 template <int Dim>
-std::size_t
-TreeBuilder<Dim>::delete_in_box(std::uint32_t root, const Point& min_corner, const Point& max_corner) {
+std::size_t TreeBuilder<Dim>::delete_box(std::uint32_t root, const BBox<Dim>& box) {
     if (root == TreeNode::INVALID) {
         return 0;
     }
-    return delete_in_box_recurse<Dim>(nodes_,
+    return delete_box_recurse<Dim>(nodes_,
                                       leaf_buckets_,
                                       leaf_bboxes_,
                                       points_,
                                       root,
                                       root_bbox_,
-                                      min_corner,
-                                      max_corner,
+                                      box.min_corner,
+                                      box.max_corner,
                                       modified_nodes_);
 }
 

@@ -434,7 +434,7 @@ Timing bench_spatial_delete(Mode mode, std::size_t n) {
         if (is_ikd(mode)) {
             state.ikd->delete_boxes(boxes);
         } else {
-            state.tkd->delete_in_boxes(std::span<const topiary::BBox<3>>{tkd_boxes.data(), tkd_boxes.size()});
+            state.tkd->delete_boxes(std::span<const topiary::BBox<3>>{tkd_boxes.data(), tkd_boxes.size()});
         }
     };
 
@@ -492,8 +492,9 @@ Timing bench_bulk_delete(Mode mode, std::size_t n) {
             } else {
                 const std::size_t off = i * batch;
                 state.tkd->insert(std::span<const Point>{insert_pool.data() + off, batch});
-                state.tkd->delete_in_box(Point{big_box.min[0], big_box.min[1], big_box.min[2]},
-                                         Point{big_box.max[0], big_box.max[1], big_box.max[2]});
+                state.tkd->delete_box(
+                    topiary::BBox<3>{Point{big_box.min[0], big_box.min[1], big_box.min[2]},
+                                     Point{big_box.max[0], big_box.max[1], big_box.max[2]}});
             }
         }
     };
@@ -569,8 +570,8 @@ Timing bench_mixed(Mode mode, std::size_t n) {
                 if (is_ikd(mode)) {
                     state.ikd->delete_box(box);
                 } else {
-                    state.tkd->delete_in_box(Point{box.min[0], box.min[1], box.min[2]},
-                                             Point{box.max[0], box.max[1], box.max[2]});
+                    state.tkd->delete_box(topiary::BBox<3>{Point{box.min[0], box.min[1], box.min[2]},
+                                                              Point{box.max[0], box.max[1], box.max[2]}});
                 }
             }
         }
@@ -624,7 +625,8 @@ int smoke() {
         tree->insert(cloud);
         const auto knn    = tree->knn_search(query, 4);
         const auto radius = tree->radius_search(query, 1.0f);
-        const auto erased = tree->delete_in_box(Point{-1.0f, -1.0f, -1.0f}, Point{0.0f, 0.0f, 0.0f});
+        const auto erased =
+            tree->delete_box(topiary::BBox<3>{Point{-1.0f, -1.0f, -1.0f}, Point{0.0f, 0.0f, 0.0f}});
         std::printf("smoke tkd:      size=%zu knn=%zu radius=%zu erased=%zu\n",
                     tree->size(),
                     knn.size(),

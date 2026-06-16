@@ -82,7 +82,7 @@ Config parity (research §2, §7):
   are over the same N. The voxel-vs-radius dedup mismatch is thereby
   avoided, not papered over.
 - Box deletes use ikd's half-open `min <= p < max`; the harness matches
-  our `delete_in_box` corner convention to that, so boundary points do
+  our `delete_box` corner convention to that, so boundary points do
   not cause spurious count drift.
 - kNN: ikd returns *squared* distances and takes a *linear* `max_dist`
   cap; our `Neighbor::sq_dist` is squared and `hybrid_search`/`radius_search`
@@ -99,9 +99,9 @@ insert workload is the only insert row.
 | Per-batch insert latency | `insert(span)` | `Add_Points(batch, false)` |
 | kNN throughput | `knn_search(q, k)` | `Nearest_Search(q, k, pts, sqd, max_dist)` |
 | Radius search | `radius_search(q, r)` | `Radius_Search(q, r, pts)` |
-| Spatial delete (box sweep) | `delete_in_box(min, max)` ×64 | `Delete_Point_Boxes({box})` ×64 |
-| Bulk delete (5× insert+big delete) | `insert` + `delete_in_box(half)` | `Add_Points` + `Delete_Point_Boxes(half)` |
-| Mixed SLAM cycle | `insert` + `knn_search` + periodic `delete_in_box` | `Add_Points` + `Nearest_Search` + periodic `Delete_Point_Boxes` |
+| Spatial delete (box sweep) | `delete_box(box)` ×64 | `Delete_Point_Boxes({box})` ×64 |
+| Bulk delete (5× insert+big delete) | `insert` + `delete_box(half)` | `Add_Points` + `Delete_Point_Boxes(half)` |
+| Mixed SLAM cycle | `insert` + `knn_search` + periodic `delete_box` | `Add_Points` + `Nearest_Search` + periodic `Delete_Point_Boxes` |
 | Memory footprint | RSS delta + analytic | RSS delta + analytic (report 42 MB constant separately) |
 
 Two delete workloads cover the two regimes the wall-vs-CPU split exposes: the
@@ -112,7 +112,7 @@ call). The **mixed cycle** is the realistic steady-churn case where per-frame
 rebuilds stay below ikd's offload threshold.
 
 For spatial delete we use the box variant on both sides (we have
-`delete_in_box`; ikd has `Delete_Point_Boxes`). `delete_outside_radius`
+`delete_box`; ikd has `Delete_Point_Boxes`). `delete_outside_radius`
 has no clean ikd analog, so it is not benched here.
 
 ### Timing model: wall-clock AND CPU time

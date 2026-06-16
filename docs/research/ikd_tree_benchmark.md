@@ -368,7 +368,7 @@ result, so measure it carefully and fairly.
    linear radius. Align query parameters (pass `max_dist` = our radius) and
    compare squared distances to squared distances.
 8. **Box half-openness.** ikd-Tree `Box_Search`/box-delete use `min <= p < max`.
-   Match our `delete_in_box` boundary convention in the harness, or boundary
+   Match our `delete_box` boundary convention in the harness, or boundary
    points cause spurious count mismatches.
 9. **Tie-break determinism.** ikd-Tree's `PointType_CMP` tie-breaks equal
    distances by `point.x`; ours may differ. For *correctness* cross-checks

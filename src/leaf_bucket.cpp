@@ -2,6 +2,8 @@
 
 namespace topiary::internal {
 
+static_assert(sizeof(BucketEntry) == 8, "BucketEntry must stay 8 B for bucket footprint accounting");
+
 LeafBucket::LeafBucket(std::size_t initial_entries) {
     data_.reserve(initial_entries);
 }

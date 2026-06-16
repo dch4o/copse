@@ -18,8 +18,8 @@ Plan reference: [`design/fixed-size-kdtree.md`](design/fixed-size-kdtree.md).
 
 ## Plan + skeleton revision (rev5)
 
-- [x] Docstring rule sweep (`///` only, ≤2 lines, no `@invariant`/`@note`,
-      drop tag-prose)
+- [x] Docstring rule sweep (`///` only; full `@brief`/`@param`/`@return`/`@tparam`,
+      no `@invariant`/`@note`)
 - [x] Lift `PointStore::for_each_live` template definition into the header
       (fix link-time hole)
 - [x] Carve out mechanical PIMPL forwarders from the `// TODO:` skeleton
@@ -169,11 +169,11 @@ Bbox-based and radius-based bulk deletion. Uses the per-leaf AABB
 infrastructure introduced alongside slice 5 (incremental insert) plus
 partition-AABB derivation during descent.
 
-- [x] `KDTree::delete_in_box(min_corner, max_corner)` — release every
+- [x] `KDTree::delete_box(const BBox<Dim>& box)` — release every
       live point inside the AABB; returns count cleared
 - [x] `KDTree::delete_outside_radius(center, r)` — release every live
       point strictly outside the sphere; returns count cleared
-- [x] `SearchKernel` gains `delete_in_box_descend` and
+- [x] `SearchKernel` gains `delete_box_descend` and
       `delete_outside_radius_descend` free functions; both carry the
       partition AABB in recursion frames and consult `leaf_bboxes_` at
       leaves for tight pruning

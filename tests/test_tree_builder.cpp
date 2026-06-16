@@ -585,7 +585,7 @@ SCENARIO("TreeBuilder<3>::maybe_partial_rebuild leaves a balanced tree untouched
     }
 }
 
-SCENARIO("TreeBuilder<3>::maybe_partial_rebuild fires on a manufactured imbalance",
+SCENARIO("TreeBuilder<3>::maybe_partial_rebuild_full fires on a manufactured imbalance",
          "[tree_builder][partial_rebuild][imbalance]") {
     GIVEN("a balanced tree whose root subtree counts are skewed past alpha=0.7") {
         using P = detail::PointType<3>;
@@ -625,14 +625,12 @@ SCENARIO("TreeBuilder<3>::maybe_partial_rebuild fires on a manufactured imbalanc
         const auto right_child                 = nodes[root].right;
         nodes[root].subtree_total_count        = 20;
         nodes[right_child].subtree_total_count = 18;
-        // 18 > 0.7 * 20 = 14 → root is unbalanced via right.
-        // The scoped trigger only inspects nodes a mutation recorded; register root as a real
-        // insert/delete touching it would, so the manufactured imbalance is in scope.
-        builder.modified_nodes().push_back(root);
+        // 18 > 0.7 * 20 = 14 → root is unbalanced via right. The full sweep inspects every
+        // node, so it finds the manufactured imbalance without a recorded modified-node list.
 
-        WHEN("maybe_partial_rebuild sweeps the unbalanced tree") {
+        WHEN("maybe_partial_rebuild_full sweeps the unbalanced tree") {
             const auto saved_pool_size = nodes.size();
-            builder.maybe_partial_rebuild(root);
+            builder.maybe_partial_rebuild_full(root);
 
             THEN("the node pool grew (the scapegoat subtree was rebuilt)") {
                 REQUIRE(nodes.size() > saved_pool_size);
@@ -772,7 +770,7 @@ SCENARIO("TreeBuilder<3>::insert_index proactively splits a leaf that hits its 2
     }
 }
 
-SCENARIO("TreeBuilder<3>::maybe_partial_rebuild keeps the scapegoat slot index valid (in-place reuse)",
+SCENARIO("TreeBuilder<3>::maybe_partial_rebuild_full keeps the scapegoat slot index valid (in-place reuse)",
          "[tree_builder][partial_rebuild][in_place]") {
     GIVEN("a tree of 8 points where the root's right child is forced into imbalance") {
         using P = detail::PointType<3>;
@@ -831,13 +829,11 @@ SCENARIO("TreeBuilder<3>::maybe_partial_rebuild keeps the scapegoat slot index v
             nodes[rc_left].subtree_total_count = 48;
             nodes[rc_left].subtree_live_count  = 48;
         }
-        // Scoped trigger inspects only recorded nodes; register the descent path a real mutation
-        // would so the sweep reaches and rebuilds right_child in place (the case under test).
-        builder.modified_nodes().push_back(root);
-        builder.modified_nodes().push_back(right_child);
+        // The full sweep descends top-down, so it reaches and rebuilds right_child in place
+        // (the case under test) without a recorded modified-node list.
 
-        WHEN("maybe_partial_rebuild fires on the right child") {
-            builder.maybe_partial_rebuild(root);
+        WHEN("maybe_partial_rebuild_full fires on the right child") {
+            builder.maybe_partial_rebuild_full(root);
 
             THEN("the right child slot index is unchanged and remains a valid node") {
                 REQUIRE(right_child < nodes.size());
@@ -888,7 +884,7 @@ void check_live_counts(const std::vector<TreeNode>& nodes,
 
 } // namespace
 
-SCENARIO("TreeBuilder<3>::delete_in_box agrees with the oracle and keeps subtree_live_count consistent",
+SCENARIO("TreeBuilder<3>::delete_box agrees with the oracle and keeps subtree_live_count consistent",
          "[tree_builder][delete][box]") {
     GIVEN("a tree built from 256 uniform random D=3 points") {
         using P = detail::PointType<3>;
@@ -920,7 +916,7 @@ SCENARIO("TreeBuilder<3>::delete_in_box agrees with the oracle and keeps subtree
         }
         const auto root = builder.rebuild(live_indices);
 
-        WHEN("delete_in_box runs with a sub-box of the extent") {
+        WHEN("delete_box runs with a sub-box of the extent") {
             const P min_corner{-4.0f, -4.0f, -4.0f};
             const P max_corner{4.0f, 4.0f, 4.0f};
 
@@ -932,7 +928,7 @@ SCENARIO("TreeBuilder<3>::delete_in_box agrees with the oracle and keeps subtree
                 }
             }
 
-            const auto cleared = builder.delete_in_box(root, min_corner, max_corner);
+            const auto cleared = builder.delete_box(root, BBox<3>{min_corner, max_corner});
 
             THEN("the cleared count matches, no in-box point is live, and counts stay consistent") {
                 REQUIRE(cleared == expected);
@@ -1007,7 +1003,7 @@ SCENARIO("TreeBuilder<3>::delete_outside_radius agrees with the oracle and keeps
     }
 }
 
-SCENARIO("TreeBuilder<3>::delete_in_box on an INVALID root returns 0", "[tree_builder][delete][box][empty]") {
+SCENARIO("TreeBuilder<3>::delete_box on an INVALID root returns 0", "[tree_builder][delete][box][empty]") {
     GIVEN("an empty node pool and an INVALID root") {
         PointStore<3>         points{4};
         LeafBucket            leaf_buckets{8};
@@ -1016,9 +1012,9 @@ SCENARIO("TreeBuilder<3>::delete_in_box on an INVALID root returns 0", "[tree_bu
         BBox<3>               root_bbox{};
         TreeBuilder<3>        builder{nodes, leaf_buckets, leaf_bboxes, root_bbox, points, 4, 0.7f, 0.25f};
 
-        WHEN("delete_in_box is invoked") {
-            const auto cleared = builder.delete_in_box(
-                TreeNode::INVALID, detail::PointType<3>{-1, -1, -1}, detail::PointType<3>{1, 1, 1});
+        WHEN("delete_box is invoked") {
+            const auto cleared = builder.delete_box(
+                TreeNode::INVALID, BBox<3>{detail::PointType<3>{-1, -1, -1}, detail::PointType<3>{1, 1, 1}});
             THEN("the count is zero") {
                 REQUIRE(cleared == 0);
             }

@@ -25,6 +25,7 @@ public:
     using Neighbor = typename topiary::KDTree<Dim>::Neighbor;
 
     /// @brief Construct with validated configuration.
+    /// @param cfg Construction-time configuration.
     /// @throws std::invalid_argument On any Config precondition violation.
     explicit KDTreeImpl(Config cfg);
 
@@ -43,11 +44,11 @@ public:
     /// @copydoc topiary::KDTree::hybrid_search
     std::vector<Neighbor> hybrid_search(const Point& query, std::size_t k, float radius) const;
 
-    /// @copydoc topiary::KDTree::delete_in_box
-    std::size_t delete_in_box(const Point& min_corner, const Point& max_corner);
+    /// @copydoc topiary::KDTree::delete_box
+    std::size_t delete_box(const BBox<Dim>& box);
 
-    /// @copydoc topiary::KDTree::delete_in_boxes
-    std::size_t delete_in_boxes(std::span<const BBox<Dim>> boxes);
+    /// @copydoc topiary::KDTree::delete_boxes
+    std::size_t delete_boxes(std::span<const BBox<Dim>> boxes);
 
     /// @copydoc topiary::KDTree::delete_outside_radius
     std::size_t delete_outside_radius(const Point& center, float r);

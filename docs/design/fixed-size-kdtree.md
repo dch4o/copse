@@ -34,10 +34,10 @@ The library lives under namespace `topiary`. Header layout is shown in [File lay
 namespace topiary {
 
 // D restricted to {2,3,4} via concept.
-// KDDim and PointType live under topiary::detail; users reach the canonical
+// SupportedDim and PointType live under topiary::detail; users reach the canonical
 // point type through KDTree<Dim>::Point and never need to spell either name.
 template <int Dim>
-    requires detail::KDDim<Dim>
+    requires detail::SupportedDim<Dim>
 class KDTree {
 public:
     using Point = detail::PointType<Dim>;      // Eigen column-vector of float as the canonical point.
@@ -85,8 +85,10 @@ public:
 
     // --- Spatial deletes (uses per-leaf AABB infrastructure from §Tree topology) ---
 
-    // Release every live point inside the axis-aligned box [min_corner, max_corner].
-    std::size_t delete_in_box(const Point& min_corner, const Point& max_corner);
+    // Release every live point inside the axis-aligned `box`.
+    std::size_t delete_box(const BBox<Dim>& box);
+    // Release every live point inside any of `boxes` (single end-of-batch rebuild).
+    std::size_t delete_boxes(std::span<const BBox<Dim>> boxes);
     // Release every live point strictly outside the sphere of radius `r` around `center`.
     std::size_t delete_outside_radius(const Point& center, float r);
 
@@ -203,7 +205,7 @@ A whole-tree `root_bbox_` member of the same `BBox<Dim>` type lives on `KDTreeIm
   2. For each match: call `builder_.tombstone_index(root_, idx)` **first** (it reads `points_.point(idx)` to descend), then `points_.release(idx)`. The call order is load-bearing because the coord must still be valid during descent. `tombstone_index` decrements `subtree_live_count` along the descent path and stops at the leaf — it does NOT scrub the bucket entry. The stale `(index, gen)` pair is invalidated automatically the next time `acquire` reuses the slot and bumps its gen; until then, leaf scans skip the entry via the gen guard (the `is_live` check stays for the released-but-not-yet-reacquired sub-window).
   3. After the batch, call `maybe_partial_rebuild(root_)` once to apply the scapegoat + tombstone-fraction trigger; the rebuilt subtree physically drops every stale entry.
 
-- **Spatial deletes** (`delete_in_box`, `delete_outside_radius`):
+- **Spatial deletes** (`delete_box`, `delete_outside_radius`):
   1. Recursive descent carrying the partition AABB in the stack frame.
   2. At each node, classify partition vs query: DISJOINT → skip; CONTAINED → release every live index in the subtree; STRADDLE → recurse children with bbox adjusted by the split plane.
   3. At leaves, classify the stored tight leaf AABB vs query before falling back to per-point checks for the residual STRADDLE case.
@@ -211,7 +213,7 @@ A whole-tree `root_bbox_` member of the same `BBox<Dim>` type lives on `KDTreeIm
 
 - **Rebuild trigger** (after each batch only, never per-point) — two entry points over one node-level violator predicate (`max(left_total, right_total) > α · subtree_total` **or** `tombstoned/total ≥ tombstone_threshold` **or**, for a leaf, `bucket_size > 2 * leaf_bucket_size`):
   - **Batch insert** → `maybe_partial_rebuild_full(root_)`: a recursive top-down sweep over the whole tree. A batch insert touches a broad swath, so visiting every node once beats recording every point-path and scoping.
-  - **Sparse deletes** (`delete_in_box`, `delete_outside_radius`, coord `remove`) → `maybe_partial_rebuild(root_)`: the mutating descent records each touched subtree node into `modified_nodes_` (one entry per node, not per point), and the sweep descends only into recorded children (sorted-unique, `binary_search` membership). After any sweep no violator remains, so an untouched subtree cannot have gained one — the scoped walk is exact and skips the bulk of the tree for a region delete. A size guard falls back to the full sweep when the recorded count approaches the node count (a delete hitting most of the tree).
+  - **Sparse deletes** (`delete_box`, `delete_outside_radius`, coord `remove`) → `maybe_partial_rebuild(root_)`: the mutating descent records each touched subtree node into `modified_nodes_` (one entry per node, not per point), and the sweep descends only into recorded children (sorted-unique, `binary_search` membership). After any sweep no violator remains, so an untouched subtree cannot have gained one — the scoped walk is exact and skips the bulk of the tree for a region delete. A size guard falls back to the full sweep when the recorded count approaches the node count (a delete hitting most of the tree).
   - On a hit, the subtree is rebuilt from its live points using median-of-max-spread split (research F9); the new subroot is written **in place** to the scapegoat's existing node-pool slot — the parent's `internal.left/right` pointer already points there, so no reparenting. New descendants append at the tail of `nodes_`; old descendants leak (bounded by N; reclaimed on the next full `rebuild_all`). On a miss, recurse into the (recorded) children then re-check self, because a child rebuild may have shifted the ratio.
 
 Split selection uses median-of-max-spread, computed via `std::nth_element`. Sliding-midpoint is deferred.
@@ -243,8 +245,8 @@ All declarations in public headers under `include/topiary/` and internal headers
 
 - `///` line comments only — never `/** ... */`.
 - Never `///<`. Single-line docstrings on a variable/field/alias declaration go on the same line, to the right (`std::size_t capacity; /// Max points.`); multi-line docstrings and docstrings on functions/classes/structs go on their own `///` lines above the declaration.
-- Hard cap: every docstring fits in ≤2 lines. `@param` and `@return` are one line each; if a parameter or return needs more, drop the tag — the type and signature carry enough.
-- Drop tags entirely: `@invariant`, `@note`. Drop trailing field comments that just restate the type (e.g., `using Scalar = float; /// Scalar type.`). Drop `@brief` lines whose content merely restates the type or signature; drop `@warning` for thread-safety on individual mutators when the class-level brief already declares the threading model. Drop `@pre`/`@post` blocks that are inferable from the function name and signature.
+- Document every function fully: `@brief`, a `@param` for each parameter, `@return` for every non-void return, `@tparam` for each template parameter, and `@throws` where it applies. Do not skip "obvious" parameters — completeness over brevity. Use `@copydoc` to inherit a public method's full doc on its impl mirror.
+- Allowed tags: `@brief`, `@param`, `@return`, `@tparam`, `@throws`. No `@invariant`/`@note`/`@pre`/`@post`, and no per-mutator `@warning` when the class-level brief already states the threading model.
 - Sources (`.cpp`) keep their current sparse-comment style.
 - Skeleton bodies are `// TODO: <one-line intent>`. **Carve-out:** mechanical PIMPL forwarders that contain no logic beyond a single forward to the impl member may be written out in the skeleton; any body that contains logic beyond a forward stays `// TODO:`.
 - No `Doxyfile` and no doc-generation infrastructure are added; only the comment style is adopted.
@@ -272,7 +274,7 @@ These are **not part of the public API** and live under `impl/` so that any futu
 >         PATTERN "impl" EXCLUDE)
 > ```
 
-- `point_traits.hpp` — minimal concept / trait machinery (`KDDim`, `PointType`, `SamePointAsEigen`, `default_leaf_bucket_size_v`), in `namespace topiary::detail`. The canonical point type is exposed publicly only as `KDTree<Dim>::Point`.
+- `point_traits.hpp` — minimal concept / trait machinery (`SupportedDim`, `PointType`, `SamePointAsEigen`, `default_leaf_bucket_size_v`), in `namespace topiary::detail`. The canonical point type is exposed publicly only as `KDTree<Dim>::Point`.
 - `tree_node.hpp` — internal `TreeNode`, the `BBox<Dim>` AABB struct used by leaves and the root extent, and node-pool typedefs. Pulls in `point_traits.hpp` for `detail::PointType<Dim>`.
 - `point_store.hpp` — point + liveness arrays, FIFO buffer (declarations).
 - `leaf_bucket.hpp` — flat bucket-index storage with per-leaf `(offset, size, capacity)` slices; fixed-cap leaves (`cap = 2B`), no compaction.
@@ -297,7 +299,7 @@ Tests are organized **one translation unit per testable class/struct/free functi
 - `test_point_store.cpp` — `PointStore<Dim>`: acquire/release, FIFO buffer removal-by-index, iteration.
 - `test_leaf_bucket.cpp` — `LeafBucket`: allocate, view, push.
 - `test_tree_node.cpp` — `TreeNode`: default state, sentinel, internal/leaf union round-trips.
-- `test_tree_builder.cpp` — `TreeBuilder<Dim>`: from-scratch rebuild, partial rebuild, insert_index, tombstone_index, spatial deletes (delete_in_box / delete_outside_radius).
+- `test_tree_builder.cpp` — `TreeBuilder<Dim>`: from-scratch rebuild, partial rebuild, insert_index, tombstone_index, spatial deletes (delete_box / delete_outside_radius).
 - `test_search_kernel.cpp` — `SearchKernel<Dim>`: traversal kernel, k_max/radius bounds, oracle agreement, liveness skipping.
 
 Intra-batch dedup is exercised through `test_kd_tree.cpp`'s insert tests; there is no standalone `test_dedup.cpp` because the inline check is no longer a standalone function.
@@ -355,7 +357,7 @@ Options:
 - **Eager removal with reverse map (ikd-tree-style).** Rejected per user instruction.
 - **Off-thread rebuild + atomic-pointer swap.** Best for tail latency; out of scope for v1.
 - **Sliding-midpoint splits.** Better on clustered data; deferred behind a future `Config::SplitStrategy` enum.
-- **Per-node AABB cache (ikd-tree style).** Standard 24B AABB on every node enables tight pruning everywhere. Rejected in favor of the hybrid scheme in [Tree topology](#tree-topology-research-f7-f8) — internal nodes stay 32B (cache density preserved on the hot kNN/radius descent), spatial deletes still get tight pruning at leaves where it matters most. Reconsider if `delete_in_box` profiling shows internal-level pruning is the bottleneck.
+- **Per-node AABB cache (ikd-tree style).** Standard 24B AABB on every node enables tight pruning everywhere. Rejected in favor of the hybrid scheme in [Tree topology](#tree-topology-research-f7-f8) — internal nodes stay 32B (cache density preserved on the hot kNN/radius descent), spatial deletes still get tight pruning at leaves where it matters most. Reconsider if `delete_box` profiling shows internal-level pruning is the bottleneck.
 - **Point-per-node tree (ikd-tree style).** Each node holds one point + bbox + split info; tree size ≈ N nodes; pairs naturally with point-granular tree rotation and parallel rebuild thread. Rejected for v1 because bucket-leaf gives ~1.5–3× faster kNN/radius (shallower tree by `log B`, cache-coherent leaf scans, amortized pruning per bucket) and smaller meta footprint (~32B × 2N/B vs ~80B × N). Reconsider if a v2 concurrent-write workload + parallel rebuild thread changes the calculus.
 
 ## Resolved decisions
@@ -402,7 +404,7 @@ std::vector<BucketView>   buckets_within  (const Point& query, float r) const;
 - **Public API surface**: `KDTree<Dim>` for D ∈ {2, 3, 4}; Config
   validated in ctor (capacity, resolution, leaf bucket size, alpha,
   tombstone threshold). `Neighbor { Point coord; float sq_dist; }`. Spatial
-  deletes: `delete_in_box`, `delete_in_boxes` (batch, one rebuild for the
+  deletes: `delete_box`, `delete_boxes` (batch, one rebuild for the
   whole list), `delete_outside_radius`; `BBox<Dim>` is a public type in
   `topiary/bbox.hpp`.
 - **Queries**: `knn_search`, `radius_search`, `hybrid_search` through the
@@ -425,7 +427,7 @@ std::vector<BucketView>   buckets_within  (const Point& query, float r) const;
   gen guard.
 - **`rebuild_all`**: clears node/leaf-bucket/leaf-bbox pools, gathers
   every live index, dispatches to `TreeBuilder::rebuild`.
-- **Spatial deletes**: `TreeBuilder::delete_in_box` /
+- **Spatial deletes**: `TreeBuilder::delete_box` /
   `delete_outside_radius` descend carrying the partition AABB (seeded from
   `root_bbox_`, narrowed by split planes); classify partition-vs-query as
   DISJOINT (skip) / CONTAINED (`release_subtree` bulk-release) / STRADDLE
@@ -435,10 +437,10 @@ std::vector<BucketView>   buckets_within  (const Point& query, float r) const;
   `tombstone_index`), recording each touched internal node into the
   builder's own `modified_nodes_`; `subtree_total_count` is left for the
   batch-end `maybe_partial_rebuild` trigger that `KDTreeImpl` drives.
-- **Batch box delete**: `delete_in_boxes(span<const BBox<Dim>>)` runs every
-  box through `TreeBuilder::delete_in_box` (accumulating `modified_nodes_`
+- **Batch box delete**: `delete_boxes(span<const BBox<Dim>>)` runs every
+  box through `TreeBuilder::delete_box` (accumulating `modified_nodes_`
   across the whole batch) and fires a SINGLE end-of-batch
-  `maybe_partial_rebuild`. The single-box `delete_in_box(min, max)`
+  `maybe_partial_rebuild`. The single-box `delete_box(box)`
   delegates to it with a one-element span, so there is one code path.
 - **Trust-the-caller surface**: no precondition throws on negative
   `radius` or `k == 0` (Config validation only). Operational outcomes

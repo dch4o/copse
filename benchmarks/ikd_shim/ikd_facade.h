@@ -17,51 +17,78 @@
 
 namespace ikd_facade {
 
-/// Plain x/y/z point, converted to `ikdTree_PointType` at the adapter boundary.
+/// @brief Plain x/y/z point, converted to `ikdTree_PointType` at the adapter boundary.
 struct Point {
-    float x, y, z;
+    float x; /// X coordinate.
+    float y; /// Y coordinate.
+    float z; /// Z coordinate.
 };
 
-/// Half-open AABB matching ikd's `min <= p < max` box convention.
+/// @brief Half-open AABB matching ikd's `min <= p < max` box convention.
 struct Box {
-    float min[3];
-    float max[3];
+    float min[3]; /// Per-axis lower bounds (inclusive).
+    float max[3]; /// Per-axis upper bounds (exclusive).
 };
 
-/// Opaque per-mode ikd-Tree handle. One concrete impl per object target.
+/// @brief Opaque per-mode ikd-Tree handle. One concrete impl per object target.
 class Tree {
 public:
+    /// @brief Virtual destructor.
     virtual ~Tree() = default;
 
-    /// One-shot balanced build from a point cloud (ikd `Build`).
+    /// @brief One-shot balanced build from a point cloud (ikd `Build`).
+    /// @param cloud Points to build from.
     virtual void build(const std::vector<Point>& cloud) = 0;
 
-    /// Raw incremental insert with downsampling off (ikd `Add_Points(_, false)`).
+    /// @brief Raw incremental insert with downsampling off (ikd `Add_Points(_, false)`).
+    /// @param batch Points to insert.
     virtual void add_points(const std::vector<Point>& batch) = 0;
 
-    /// k nearest neighbors; fills `sq_dists` with squared distances. Returns count found.
+    /// @brief k nearest neighbors; fills `sq_dists` with squared distances.
+    /// @param query Query point.
+    /// @param k Number of neighbors to return.
+    /// @param sq_dists Output filled with the squared distances of the results.
+    /// @return Number of neighbors found.
     virtual std::size_t knn(const Point& query, int k, std::vector<float>& sq_dists) = 0;
 
-    /// Neighbors within linear `radius`; fills `out`. Returns count found.
+    /// @brief Neighbors within linear `radius`; fills `out`.
+    /// @param query Query point.
+    /// @param radius Search radius (Euclidean).
+    /// @param out Output filled with the matching points.
+    /// @return Number of neighbors found.
     virtual std::size_t radius(const Point& query, float radius, std::vector<Point>& out) = 0;
 
-    /// Lazy box delete (ikd `Delete_Point_Boxes`). Returns count marked deleted.
+    /// @brief Lazy box delete (ikd `Delete_Point_Boxes`).
+    /// @param box Box to clear.
+    /// @return Number of points marked deleted.
     virtual int delete_box(const Box& box) = 0;
 
-    /// Lazy delete of a whole box batch in one `Delete_Point_Boxes` call. Returns count marked deleted.
+    /// @brief Lazy delete of a whole box batch in one `Delete_Point_Boxes` call.
+    /// @param boxes Boxes to clear.
+    /// @return Number of points marked deleted.
     virtual int delete_boxes(const std::vector<Box>& boxes) = 0;
 
-    /// Total nodes including tombstones (ikd `size`).
+    /// @brief Total nodes including tombstones (ikd `size`).
+    /// @return Node count including tombstones.
     virtual int size() const = 0;
 
-    /// Live (non-tombstoned) points (ikd `validnum`).
+    /// @brief Live (non-tombstoned) points (ikd `validnum`).
+    /// @return Live point count.
     virtual int valid() const = 0;
 };
 
-/// Mode (b): background rebuild OFF (`Multi_Thread_Rebuild_Point_Num = INT_MAX`).
+/// @brief Mode (b): background rebuild OFF (`Multi_Thread_Rebuild_Point_Num = INT_MAX`).
+/// @param delete_param Tombstone fraction triggering rebuild.
+/// @param balance_param Subtree-imbalance trigger.
+/// @param box_length Downsample voxel edge.
+/// @return Newly allocated tree (caller owns).
 Tree* make_bg_off(float delete_param, float balance_param, float box_length);
 
-/// Mode (c): background rebuild ON (`Multi_Thread_Rebuild_Point_Num = 1500`).
+/// @brief Mode (c): background rebuild ON (`Multi_Thread_Rebuild_Point_Num = 1500`).
+/// @param delete_param Tombstone fraction triggering rebuild.
+/// @param balance_param Subtree-imbalance trigger.
+/// @param box_length Downsample voxel edge.
+/// @return Newly allocated tree (caller owns).
 Tree* make_bg_on(float delete_param, float balance_param, float box_length);
 
 } // namespace ikd_facade

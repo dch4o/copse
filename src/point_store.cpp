@@ -1,10 +1,16 @@
 #include "topiary/impl/point_store.hpp"
 
+#include <cstdint>
 #include <numeric>
 #include <stdexcept>
 #include <utility>
 
 namespace topiary::internal {
+
+namespace {
+/// Sentinel marking an unused `buf_pos_` slot.
+constexpr std::uint32_t INVALID_POS = ~std::uint32_t{0};
+} // namespace
 
 template <int Dim>
 PointStore<Dim>::PointStore(std::size_t capacity)
