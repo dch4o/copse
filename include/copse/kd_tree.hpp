@@ -83,23 +83,20 @@ public:
     /// @brief k nearest neighbors of `query`, sorted ascending by squared distance.
     /// @param query Query point.
     /// @param k Number of neighbors to return.
-    /// @return Up to `k` neighbors, sorted ascending by squared distance.
-    /// @throws std::invalid_argument If `k == 0`.
+    /// @return Up to `k` neighbors, sorted ascending by squared distance; empty if `k == 0`.
     std::vector<Neighbor> knn_search(const Point& query, std::size_t k) const;
 
     /// @brief All neighbors of `query` within `radius` (linear), sorted ascending by squared distance.
     /// @param query Query point.
     /// @param radius Search radius (Euclidean).
     /// @return Every neighbor within `radius`, sorted ascending by squared distance.
-    /// @throws std::invalid_argument If `radius < 0`.
     std::vector<Neighbor> radius_search(const Point& query, float radius) const;
 
     /// @brief Up to `k` nearest neighbors of `query` within `radius`, sorted ascending by squared distance.
     /// @param query Query point.
     /// @param k Neighbor cap.
     /// @param radius Search radius (Euclidean).
-    /// @return Up to `k` neighbors within `radius`, sorted ascending by squared distance.
-    /// @throws std::invalid_argument If `k == 0` or `radius < 0`.
+    /// @return Up to `k` neighbors within `radius`, sorted ascending by squared distance; empty if `k == 0`.
     std::vector<Neighbor> hybrid_search(const Point& query, std::size_t k, float radius) const;
 
     /// @brief Release every live point inside any of `boxes`, with a single end-of-batch rebuild.
