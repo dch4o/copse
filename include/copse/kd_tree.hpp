@@ -3,6 +3,7 @@
 #pragma once
 
 #include "copse/bbox.hpp"
+#include "copse/copse_export.h"
 #include "copse/impl/point_traits.hpp"
 #include "copse/point.hpp"
 
@@ -137,5 +138,11 @@ using KDTree2 = KDTree<2>;
 using KDTree3 = KDTree<3>;
 using KDTree4 = KDTree<4>;
 /// @}
+
+// Instantiated in the library and exported; consumers link those and never
+// re-instantiate the template.
+extern template class COPSE_EXPORT KDTree<2>;
+extern template class COPSE_EXPORT KDTree<3>;
+extern template class COPSE_EXPORT KDTree<4>;
 
 } // namespace copse

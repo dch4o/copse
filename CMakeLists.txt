@@ -17,6 +17,7 @@ option(COPSE_INSTALL          "Generate install and package-config rules"       
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 include(ClangTidy)
 include(GNUInstallDirs)
+include(GenerateExportHeader)
 
 # --- Dependencies ---
 
@@ -53,6 +54,24 @@ target_include_directories(copse
 
 # Propagate the C++20 requirement to consumers (set(CMAKE_CXX_STANDARD) does not).
 target_compile_features(copse PUBLIC cxx_std_20)
+
+# Visibility: hide everything by default and export only the public KDTree<Dim>
+# (tagged COPSE_EXPORT below), so the shared library's dynamic symbol table is
+# just the public API — internal helpers stay hidden. COPSE_EXPORT is empty for a
+# static build (COPSE_STATIC_DEFINE).
+set_target_properties(copse PROPERTIES
+    CXX_VISIBILITY_PRESET     hidden
+    VISIBILITY_INLINES_HIDDEN ON
+)
+generate_export_header(copse
+    EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/copse/copse_export.h
+)
+target_include_directories(copse PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+)
+if(NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(copse PUBLIC COPSE_STATIC_DEFINE)
+endif()
 
 # A generator expression is one ;-list: quote it and separate flags with ; so
 # each reaches the compiler as its own argument (a space-joined string would be
@@ -95,6 +114,9 @@ if(COPSE_INSTALL)
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
     install(DIRECTORY include/copse DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/copse/copse_export.h
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/copse
+    )
 
     set(COPSE_CMAKE_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/copse)
     install(EXPORT copseTargets

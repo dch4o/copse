@@ -95,8 +95,8 @@ void KDTree<Dim>::rebuild_all() {
     impl_->rebuild_all();
 }
 
-template class KDTree<2>;
-template class KDTree<3>;
-template class KDTree<4>;
+template class COPSE_EXPORT KDTree<2>;
+template class COPSE_EXPORT KDTree<3>;
+template class COPSE_EXPORT KDTree<4>;
 
 } // namespace copse
