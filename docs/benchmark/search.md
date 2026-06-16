@@ -1,6 +1,6 @@
 # Search benchmark
 
-> Run date: 2026-05-14 · Source: `benchmarks/bench_search.cpp`
+> Run date: 2026-06-16 · Source: `benchmarks/bench_search.cpp`
 
 Per-query latency of `KDTree3::knn_search`, `radius_search`,
 `hybrid_search`, plus N-sweep + radius-sweep, plus mixed insert/query
@@ -23,8 +23,8 @@ cycle throughput.
   settings: cap = 100k prefilled to 10k; cap = 1M prefilled to 500k.
 - **RNG:** `std::mt19937_64` with fixed seeds; `resolution = 1e-6f`.
 - **Bench harness:** Catch2 v3.5.4, 5 samples per row.
-- **Environment:** Intel Core Ultra 5 235 · Linux 6.17 x86_64 ·
-  g++ 13.3.0 · CMake 3.31.9 · Release `-O3`.
+- **Environment:** Ubuntu 24.04 LTS · Linux 6.17 · Intel Core Ultra 5
+  235 (14 cores) · 16 GB RAM · g++ 13.3.0 · CMake 3.31.9 · Release `-O3`.
 
 ## Results
 
@@ -34,72 +34,74 @@ cycle throughput.
 
 | Query                       | Mean / call |  Stddev |
 | --------------------------- | ----------: | ------: |
-| `knn_search` k = 1          |    1.915 µs |   232 ns|
-| `knn_search` k = 8          |    10.17 µs |  3.85 µs|
-| `knn_search` k = 32         |    13.12 µs |  4.14 µs|
-| `radius_search` r = 5.0     |    1.476 ms |   367 µs|
-| `hybrid_search` k=32, r=5.0 |    17.34 µs |  4.98 µs|
+| `knn_search` k = 1          |    1.185 µs |  91.3 ns|
+| `knn_search` k = 8          |    4.430 µs |   746 ns|
+| `knn_search` k = 32         |    7.189 µs |   350 ns|
+| `radius_search` r = 5.0     |    8.773 µs |   982 ns|
+| `hybrid_search` k=32, r=5.0 |    6.037 µs |   481 ns|
 
 ### knn k=8 across live-point count
 
 | N    | Mean / call |  Stddev |
 | ---- | ----------: | ------: |
-| 50k  |    4.071 µs |   617 ns|
-| 100k |    7.032 µs |  1.73 µs|
-| 500k |    6.203 µs |   237 ns|
-| 1M   |    8.150 µs |  3.52 µs|
+| 50k  |    1.775 µs |   288 ns|
+| 100k |    2.655 µs |   246 ns|
+| 500k |    5.673 µs |  1.22 µs|
+| 1M   |    5.955 µs |   892 ns|
 
 ```mermaid
 xychart-beta
     title "knn k=8 — mean per-query time (µs) vs N"
     x-axis [50k, 100k, 500k, 1M]
-    y-axis "time (µs)" 0 --> 10
-    bar [4.071, 7.032, 6.203, 8.150]
+    y-axis "time (µs)" 0 --> 7
+    bar [1.775, 2.655, 5.673, 5.955]
 ```
 
 ### radius_search across r (N = 100k)
 
 | r    | Mean / call |  Stddev |
 | ---- | ----------: | ------: |
-| 0.5  |    1.232 ms |   203 µs|
-| 2.0  |    1.078 ms |  22.7 µs|
-| 5.0  |    1.111 ms |  52.8 µs|
-| 10.0 |    1.093 ms |  68.2 µs|
+| 0.5  |      758 ns |  98.3 ns|
+| 2.0  |    1.909 µs |   147 ns|
+| 5.0  |    9.354 µs |  1.59 µs|
+| 10.0 |    49.90 µs |  2.29 µs|
 
 ### Mixed cycle (1 × insert(1k) + 10,000 × knn_search k=8)
 
 | Prefill | Mean / cycle |   Stddev | Inferred per-query knn |
 | ------- | -----------: | -------: | ---------------------: |
-|     10k |    11.28 ms  |  9.44 µs |              ~1.1 µs   |
-|    500k |    53.99 ms  |  1.76 ms |              ~5.4 µs   |
+|     10k |    10.37 ms  |  90.1 µs |              ~1.0 µs   |
+|    500k |    28.05 ms  |  1.27 ms |              ~2.8 µs   |
 
 ## What this tells us
 
 **knn scales sublinearly with both `k` and `N`.** From k=1 to k=32
-(32×) is ~6.9× cost; from N=50k to N=1M (20×) is ~2× cost. Both
-trends point at the same mechanism: the bounded max-heap fills early
-and tightens the leaf-scan skip threshold, pruning most of the
-remaining tree.
+(32×) is ~6× cost (1.19 → 7.19 µs); from N=50k to N=1M (20×) is ~3.4×
+cost (1.78 → 5.96 µs). Both trends point at the same mechanism: the
+bounded max-heap fills early and tightens the leaf-scan skip threshold,
+pruning most of the remaining tree.
 
-**`radius_search` cost is essentially independent of radius in this
-density regime.** 4× increase in `r` (0.5 → 10.0) moves the per-query
-time by single-digit percent. With 100k points in `[0, 100)^3` the
-partition leaves have small spatial extent; even r=0.5 fails to prune
-most internal nodes because the per-axis split-plane gap squared
-(`diff*diff`) is small relative to even the smallest sq_radius. The
-dominant cost is descent + leaf-scan over the visited subtree, not
-result-vector maintenance.
+**`radius_search` cost scales with the radius (result count).** Over
+r ∈ {0.5, 2.0, 5.0, 10.0} on 100k points in `[0, 100)^3` the per-query
+mean climbs from ~758 ns to ~49.9 µs (~66×). A larger radius clears the
+per-axis split-plane prune test (`diff*diff` vs `sq_radius`) on more
+internal nodes, so the traversal descends into — and leaf-scans — a
+growing fraction of the tree and collects more matches. At small r the
+squared split-plane gap exceeds the sq_radius early, so the descent
+stays shallow and most of the tree is pruned.
 
-**`hybrid_search` is bounded by the `k` cap when `r` is large.** With
-`(k = 32, r = 5.0)` the k-bound dominates the traversal pruning long
-before `r` does; per-call time is comparable to `knn k = 32` (17 µs
-vs 13 µs) and ~85× cheaper than pure `radius_search` at the same
-`r`. Use `hybrid_search` whenever the caller has a sensible upper
-bound on the result count.
+**`hybrid_search` adds a `k` cap on top of the radius bound.** With
+`(k = 32, r = 5.0)` the per-call time (~6.0 µs) sits just under both
+`knn k = 32` (~7.2 µs) and `radius_search r = 5.0` (~8.8 µs): the `k`
+cap lets the bounded heap tighten the prune threshold sooner than the
+radius alone would. The margin over `radius_search` is modest at this
+radius (~1.5×) because radius_search is already cheap here — but the
+cap matters most when `r` is large enough that the unbounded result set
+would balloon (radius_search alone is already ~50 µs at r=10.0).
 
 **Mixed cycle is dominated by the query burst.** The 10k searches
 account for the bulk of cycle time at both prefill levels; the 1k
 insert contributes a few milliseconds at most. Per-query knn (k=8)
-grows from ~1.1 µs at N=10k to ~5.4 µs at N=500k — sublinear in live
+grows from ~1.0 µs at N=10k to ~2.8 µs at N=500k — sublinear in live
 count, consistent with the `O(log N)` descent shape with cache-pressure
 adjustments at larger working sets.

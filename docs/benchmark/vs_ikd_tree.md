@@ -33,8 +33,8 @@ ikd-Tree (`@c0e36a16`) on SLAM-shaped workloads, across three run modes.
 - **N ∈ {10k, 100k}.** 1M is dropped from the run — it is the dominant cost
   while the comparative signal is already saturated by 100k; the 1M memory
   figure is projected analytically below.
-- **Environment:** Intel Core Ultra 5 235 (14 cores) · Linux 6.17 x86_64 ·
-  g++ 13.3.0 · CMake 3.31.9 · Release `-O3`.
+- **Environment:** Ubuntu 24.04 LTS · Linux 6.17 · Intel Core Ultra 5
+  235 (14 cores) · 16 GB RAM · g++ 13.3.0 · CMake 3.31.9 · Release `-O3`.
 
 ## Insert (streaming, per-point)
 
