@@ -6,7 +6,7 @@
 # incremental builds re-tidy only the TUs that actually recompile.
 #
 # Use:
-#   include(clang_tidy)
+#   include(ClangTidy)
 #   copse_enable_clang_tidy_on(<target> [<target>...])
 
 option(COPSE_ENABLE_CLANG_TIDY "Run clang-tidy on first-party targets during the build" OFF)

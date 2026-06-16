@@ -14,7 +14,7 @@ option(COPSE_BUILD_BENCHMARKS "Build copse benchmarks" ON)
 option(COPSE_BUILD_DEMOS      "Build copse demos (pulls Polyscope; needs GL/X11)" OFF)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
-include(clang_tidy)
+include(ClangTidy)
 
 # --- Dependencies ---
 
