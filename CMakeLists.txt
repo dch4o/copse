@@ -14,8 +14,19 @@ option(COPSE_BUILD_BENCHMARKS "Build copse benchmarks" ON)
 option(COPSE_BUILD_DEMOS      "Build copse demos (pulls Polyscope; needs GL/X11)" OFF)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
-include(Dependencies)
-include(ClangTidy)
+include(clang_tidy)
+
+# --- Dependencies ---
+
+# Eigen — header-only linear algebra; the canonical point type.
+find_package(Eigen3 5.0 REQUIRED NO_MODULE)
+
+# Catch2 v3 — unit tests and benchmarks. Resolved via cmake/FindCatch2.cmake
+# (module mode): tries CONFIG first, falls back to FetchContent so the build is
+# self-contained.
+if(COPSE_BUILD_TESTS OR COPSE_BUILD_BENCHMARKS)
+    find_package(Catch2 REQUIRED)
+endif()
 
 # --- Library ---
 
@@ -36,13 +47,17 @@ target_include_directories(copse
 
 target_link_libraries(copse PUBLIC Eigen3::Eigen)
 
+# A generator expression is one ;-list: quote it and separate flags with ; so
+# each reaches the compiler as its own argument (a space-joined string would be
+# passed as a single bad option).
+set(copse_warning_flags -Wall -Wextra -Wpedantic)
 target_compile_options(copse PRIVATE
-    $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>
+    "$<$<CXX_COMPILER_ID:GNU,Clang>:${copse_warning_flags}>"
 )
 
 copse_enable_clang_tidy_on(copse)
 
-# --- Tests / benchmarks ---
+# --- Tests / benchmarks / demos ---
 
 if(COPSE_BUILD_TESTS)
     enable_testing()
@@ -50,7 +65,6 @@ if(COPSE_BUILD_TESTS)
 endif()
 
 if(COPSE_BUILD_BENCHMARKS)
-    include(IkdTree)
     add_subdirectory(benchmarks)
 endif()
 
