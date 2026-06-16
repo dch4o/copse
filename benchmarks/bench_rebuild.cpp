@@ -31,7 +31,7 @@ std::vector<Point> make_points(std::size_t count, std::uint64_t seed, float exte
     std::vector<Point>                    out;
     out.reserve(count);
     for (std::size_t i = 0; i < count; ++i) {
-        out.emplace_back(dist(rng), dist(rng), dist(rng));
+        out.push_back(Point{dist(rng), dist(rng), dist(rng)});
     }
     return out;
 }
@@ -167,13 +167,13 @@ TEST_CASE("Bench: degenerate cluster insert (LeafBucket overflow path), 1M point
     (Catch::Benchmark::Chronometer meter) {
         const auto fill = make_points(kCapacity, kSeed ^ 0x41u, kCoordExtent);
 
-        std::vector<Point> batch;
+        std::vector<Tree::Point> batch;
         batch.reserve(kDegenerateBatch);
         std::mt19937_64                       rng{kSeed ^ 0x42u};
         std::uniform_real_distribution<float> jitter{-kClusterJitterMax, kClusterJitterMax};
         for (std::size_t i = 0; i < kDegenerateBatch; ++i) {
-            batch.emplace_back(
-                kClusterCenter + jitter(rng), kClusterCenter + jitter(rng), kClusterCenter + jitter(rng));
+            batch.push_back(Tree::Point{
+                kClusterCenter + jitter(rng), kClusterCenter + jitter(rng), kClusterCenter + jitter(rng)});
         }
 
         Tree tree{make_config(kCapacity)};
@@ -199,7 +199,7 @@ TEST_CASE("Bench: tombstone-triggered partial rebuild, 1M points", "[!benchmark]
 
         // Sample remove-targets directly from the prefill so every query matches
         // a live point. Fixed seed keeps the sample reproducible per iteration.
-        std::vector<Point> remove_queries;
+        std::vector<Tree::Point> remove_queries;
         remove_queries.reserve(kRemoveFraction);
         std::mt19937_64                            rng{kSeed ^ 0x53u};
         std::uniform_int_distribution<std::size_t> pick{0, fill.size() - 1};

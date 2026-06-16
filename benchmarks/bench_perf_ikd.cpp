@@ -92,7 +92,7 @@ std::vector<Point> make_points(std::size_t count, std::uint64_t seed, float exte
     std::vector<Point>                    out;
     out.reserve(count);
     for (std::size_t i = 0; i < count; ++i) {
-        out.emplace_back(dist(rng), dist(rng), dist(rng));
+        out.push_back(Point{dist(rng), dist(rng), dist(rng)});
     }
     return out;
 }
@@ -101,7 +101,7 @@ std::vector<ikd_facade::Point> to_ikd_cloud(const std::vector<Point>& points) {
     std::vector<ikd_facade::Point> out;
     out.reserve(points.size());
     for (const auto& point : points) {
-        out.push_back(ikd_facade::Point{point.x(), point.y(), point.z()});
+        out.push_back(ikd_facade::Point{point[0], point[1], point[2]});
     }
     return out;
 }
@@ -276,14 +276,14 @@ Timing bench_insert(Mode mode, std::size_t n) {
     if (is_ikd(mode)) {
         ikd_seed.reserve(seed_len);
         for (std::size_t i = 0; i < seed_len; ++i) {
-            ikd_seed.push_back(ikd_facade::Point{cloud[i].x(), cloud[i].y(), cloud[i].z()});
+            ikd_seed.push_back(ikd_facade::Point{cloud[i][0], cloud[i][1], cloud[i][2]});
         }
         for (std::size_t off = seed_len; off < n; off += kInsertBatch) {
             const std::size_t              len = std::min(kInsertBatch, n - off);
             std::vector<ikd_facade::Point> batch;
             batch.reserve(len);
             for (std::size_t i = off; i < off + len; ++i) {
-                batch.push_back(ikd_facade::Point{cloud[i].x(), cloud[i].y(), cloud[i].z()});
+                batch.push_back(ikd_facade::Point{cloud[i][0], cloud[i][1], cloud[i][2]});
             }
             ikd_batches.push_back(std::move(batch));
         }
@@ -349,7 +349,7 @@ Timing bench_knn(Mode mode, std::size_t n) {
         std::vector<float> sq_dists;
         for (const auto& query : queries) {
             if (is_ikd(mode)) {
-                found += state.ikd->knn(ikd_facade::Point{query.x(), query.y(), query.z()}, kKnnK, sq_dists);
+                found += state.ikd->knn(ikd_facade::Point{query[0], query[1], query[2]}, kKnnK, sq_dists);
             } else {
                 found += state.copse->knn_search(query, kKnnK).size();
             }
@@ -387,7 +387,7 @@ Timing bench_radius(Mode mode, std::size_t n) {
         for (const auto& query : queries) {
             if (is_ikd(mode)) {
                 found +=
-                    state.ikd->radius(ikd_facade::Point{query.x(), query.y(), query.z()}, radius, in_radius);
+                    state.ikd->radius(ikd_facade::Point{query[0], query[1], query[2]}, radius, in_radius);
             } else {
                 found += state.copse->radius_search(query, radius).size();
             }
@@ -462,7 +462,7 @@ Timing bench_bulk_delete(Mode mode, std::size_t n) {
             ikd_batch.reserve(batch);
             for (std::size_t j = 0; j < batch; ++j) {
                 const auto& point = insert_pool[i * batch + j];
-                ikd_batch.push_back(ikd_facade::Point{point.x(), point.y(), point.z()});
+                ikd_batch.push_back(ikd_facade::Point{point[0], point[1], point[2]});
             }
             ikd_batches.push_back(std::move(ikd_batch));
         }
@@ -522,7 +522,7 @@ Timing bench_mixed(Mode mode, std::size_t n) {
             batch.reserve(kCycleInsertBatch);
             for (std::size_t i = 0; i < kCycleInsertBatch; ++i) {
                 const auto& point = insert_pool[c * kCycleInsertBatch + i];
-                batch.push_back(ikd_facade::Point{point.x(), point.y(), point.z()});
+                batch.push_back(ikd_facade::Point{point[0], point[1], point[2]});
             }
             ikd_batches.push_back(std::move(batch));
         }
@@ -560,7 +560,7 @@ Timing bench_mixed(Mode mode, std::size_t n) {
                 const auto& query = queries[q];
                 if (is_ikd(mode)) {
                     found +=
-                        state.ikd->knn(ikd_facade::Point{query.x(), query.y(), query.z()}, kKnnK, sq_dists);
+                        state.ikd->knn(ikd_facade::Point{query[0], query[1], query[2]}, kKnnK, sq_dists);
                 } else {
                     found += state.copse->knn_search(query, kKnnK).size();
                 }
@@ -642,8 +642,8 @@ int smoke() {
         tree->build(ikd_cloud);
         std::vector<float>             sq_dists;
         std::vector<ikd_facade::Point> in_radius;
-        const auto knn    = tree->knn(ikd_facade::Point{query.x(), query.y(), query.z()}, 4, sq_dists);
-        const auto radius = tree->radius(ikd_facade::Point{query.x(), query.y(), query.z()}, 1.0f, in_radius);
+        const auto knn    = tree->knn(ikd_facade::Point{query[0], query[1], query[2]}, 4, sq_dists);
+        const auto radius = tree->radius(ikd_facade::Point{query[0], query[1], query[2]}, 1.0f, in_radius);
         const ikd_facade::Box box{{-1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}};
         const auto            erased = tree->box_delete(box);
         std::printf("smoke ikd %s: size=%d valid=%d knn=%zu radius=%zu erased=%d\n",

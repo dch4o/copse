@@ -29,7 +29,7 @@ KdTree*      g_tree = nullptr;
 std::mt19937 g_rng{1234};
 
 Vec3 to_vec(const Point& point) {
-    return {point.x(), point.y(), point.z()};
+    return {point[0], point[1], point[2]};
 }
 
 std::vector<Point> random_cloud(std::mt19937& rng, std::size_t count) {
@@ -37,7 +37,7 @@ std::vector<Point> random_cloud(std::mt19937& rng, std::size_t count) {
     std::vector<Point>                    cloud;
     cloud.reserve(count);
     for (std::size_t i = 0; i < count; ++i) {
-        cloud.emplace_back(coord(rng), coord(rng), coord(rng));
+        cloud.push_back(Point{coord(rng), coord(rng), coord(rng)});
     }
     return cloud;
 }

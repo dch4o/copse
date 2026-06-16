@@ -1,8 +1,6 @@
 #pragma once
 
-#include "copse/impl/point_traits.hpp"
-
-#include <Eigen/Core>
+#include "copse/point.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -16,7 +14,7 @@ namespace copse::internal {
 template <int Dim>
 class PointStore {
 public:
-    using Point = detail::PointType<Dim>;
+    using Point = copse::Point<Dim>;
 
     /// @brief Construct with fixed capacity (must be > 0; validated by enclosing KDTreeImpl).
     /// @param capacity Fixed slot capacity.

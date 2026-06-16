@@ -18,8 +18,11 @@ include(ClangTidy)
 
 # --- Dependencies ---
 
-# Eigen — header-only linear algebra; the canonical point type.
-find_package(Eigen3 5.0 REQUIRED NO_MODULE)
+# Eigen — benchmark-only: the ikd-Tree comparison baseline (and its PCL-free
+# shim) need it. The library, tests, and Catch2 benches are Eigen-free.
+if(COPSE_BUILD_BENCHMARKS)
+    find_package(Eigen3 5.0 REQUIRED NO_MODULE)
+endif()
 
 # Catch2 v3 — unit tests and benchmarks. Resolved via cmake/FindCatch2.cmake
 # (module mode): tries CONFIG first, falls back to FetchContent so the build is
@@ -44,8 +47,6 @@ target_include_directories(copse
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
-
-target_link_libraries(copse PUBLIC Eigen3::Eigen)
 
 # A generator expression is one ;-list: quote it and separate flags with ; so
 # each reaches the compiler as its own argument (a space-joined string would be

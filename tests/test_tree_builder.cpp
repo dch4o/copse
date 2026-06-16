@@ -58,7 +58,7 @@ void collect_leaf_nodes(const std::vector<TreeNode>& nodes,
 
 template <int Dim>
 std::uint32_t
-descend_to_leaf(const std::vector<TreeNode>& nodes, std::uint32_t root, const detail::PointType<Dim>& point) {
+descend_to_leaf(const std::vector<TreeNode>& nodes, std::uint32_t root, const copse::Point<Dim>& point) {
     std::uint32_t node_idx = root;
     while (!nodes[node_idx].is_leaf) {
         const auto& node = nodes[node_idx];
@@ -67,11 +67,21 @@ descend_to_leaf(const std::vector<TreeNode>& nodes, std::uint32_t root, const de
     return node_idx;
 }
 
+template <int Dim>
+BBox<Dim> make_empty_bbox() {
+    BBox<Dim> box;
+    for (int dim = 0; dim < Dim; ++dim) {
+        box.min_corner[dim] = std::numeric_limits<float>::infinity();
+        box.max_corner[dim] = -std::numeric_limits<float>::infinity();
+    }
+    return box;
+}
+
 } // namespace
 
 SCENARIO("TreeBuilder<3>::rebuild on a small fixed point set", "[tree_builder][rebuild]") {
     GIVEN("a PointStore<3> filled with 10 fixed points and a builder with leaf_bucket_size=2") {
-        using P = detail::PointType<3>;
+        using P = copse::Point<3>;
         const std::vector<P> coords{
             P{0, 0, 0},
             P{1, 0, 0},
@@ -155,7 +165,7 @@ SCENARIO("TreeBuilder<3>::rebuild on a small fixed point set", "[tree_builder][r
 SCENARIO("TreeBuilder<3>::rebuild populates leaf BBoxes, root BBox, and leaf capacity",
          "[tree_builder][rebuild][bbox]") {
     GIVEN("a PointStore<3> filled with 10 fixed points and a builder with leaf_bucket_size=5") {
-        using P = detail::PointType<3>;
+        using P = copse::Point<3>;
         const std::vector<P> coords{
             P{0, 0, 0},
             P{1, 0, 0},
@@ -197,35 +207,29 @@ SCENARIO("TreeBuilder<3>::rebuild populates leaf BBoxes, root BBox, and leaf cap
                     REQUIRE(leaf.bucket_size <= static_cast<std::uint16_t>(leaf_bucket_size));
                 }
             }
-            AND_THEN("each leaf_bbox equals the cwiseMin/cwiseMax of its bucket's points") {
+            AND_THEN("each leaf_bbox equals the per-axis min/max of its bucket's points") {
                 std::vector<std::uint32_t> leaf_node_indices;
                 collect_leaf_nodes<3>(nodes, root, leaf_node_indices);
                 REQUIRE(leaf_node_indices.size() == leaf_bboxes.size());
                 for (auto idx : leaf_node_indices) {
                     const auto& leaf = nodes[idx];
                     REQUIRE(leaf.leaf_bbox_idx < leaf_bboxes.size());
-                    P expected_min = P::Constant(std::numeric_limits<float>::infinity());
-                    P expected_max = P::Constant(-std::numeric_limits<float>::infinity());
+                    BBox<3> expected = make_empty_bbox<3>();
                     for (const auto& entry : leaf_buckets.view(leaf.bucket_offset, leaf.bucket_size)) {
-                        const auto& point = points.point(entry.index);
-                        expected_min      = expected_min.cwiseMin(point);
-                        expected_max      = expected_max.cwiseMax(point);
+                        expected.expand(points.point(entry.index));
                     }
                     const auto& bbox = leaf_bboxes[leaf.leaf_bbox_idx];
-                    REQUIRE(bbox.min_corner == expected_min);
-                    REQUIRE(bbox.max_corner == expected_max);
+                    REQUIRE(bbox.min_corner.sq_dist(expected.min_corner) == 0.0f);
+                    REQUIRE(bbox.max_corner.sq_dist(expected.max_corner) == 0.0f);
                 }
             }
-            AND_THEN("root_bbox equals the cwiseMin/cwiseMax of all live points") {
-                P expected_min = P::Constant(std::numeric_limits<float>::infinity());
-                P expected_max = P::Constant(-std::numeric_limits<float>::infinity());
+            AND_THEN("root_bbox equals the per-axis min/max of all live points") {
+                BBox<3> expected = make_empty_bbox<3>();
                 for (auto idx : live_indices) {
-                    const auto& point = points.point(idx);
-                    expected_min      = expected_min.cwiseMin(point);
-                    expected_max      = expected_max.cwiseMax(point);
+                    expected.expand(points.point(idx));
                 }
-                REQUIRE(root_bbox.min_corner == expected_min);
-                REQUIRE(root_bbox.max_corner == expected_max);
+                REQUIRE(root_bbox.min_corner.sq_dist(expected.min_corner) == 0.0f);
+                REQUIRE(root_bbox.max_corner.sq_dist(expected.max_corner) == 0.0f);
             }
         }
     }
@@ -234,7 +238,7 @@ SCENARIO("TreeBuilder<3>::rebuild populates leaf BBoxes, root BBox, and leaf cap
 SCENARIO("TreeBuilder<3>::insert_index appends to the routed leaf and bumps subtree counts",
          "[tree_builder][insert]") {
     GIVEN("a rebuilt tree over 8 fixed points with leaf_bucket_size=2 and room to grow") {
-        using P = detail::PointType<3>;
+        using P = copse::Point<3>;
         const std::vector<P> coords{
             P{0, 0, 0},
             P{1, 0, 0},
@@ -333,9 +337,11 @@ SCENARIO("TreeBuilder<3>::insert_index appends to the routed leaf and bumps subt
 
             builder.insert_index(root, new_index);
 
-            THEN("root_bbox expands via cwiseMin to include the new point") {
-                REQUIRE(root_bbox.min_corner == saved_root_min.cwiseMin(new_point));
-                REQUIRE(root_bbox.max_corner == saved_root_max.cwiseMax(new_point));
+            THEN("root_bbox expands per-axis to include the new point") {
+                BBox<3> expected{saved_root_min, saved_root_max};
+                expected.expand(new_point);
+                REQUIRE(root_bbox.min_corner.sq_dist(expected.min_corner) == 0.0f);
+                REQUIRE(root_bbox.max_corner.sq_dist(expected.max_corner) == 0.0f);
             }
             AND_THEN("the touched leaf's bbox expands to include the new point") {
                 const auto& bbox = leaf_bboxes[bbox_idx];
@@ -353,7 +359,7 @@ SCENARIO("TreeBuilder<3>::insert_index appends to the routed leaf and bumps subt
 SCENARIO("TreeBuilder<3>::tombstone_index decrements live counts and records the descent path",
          "[tree_builder][tombstone]") {
     GIVEN("a rebuilt tree over 10 fixed points with leaf_bucket_size=2") {
-        using P = detail::PointType<3>;
+        using P = copse::Point<3>;
         const std::vector<P> coords{
             P{0, 0, 0},
             P{1, 0, 0},
@@ -523,7 +529,7 @@ std::vector<std::uint32_t> all_node_indices(const std::vector<TreeNode>& nodes, 
 SCENARIO("TreeBuilder<3>::maybe_partial_rebuild leaves a balanced tree untouched",
          "[tree_builder][partial_rebuild]") {
     GIVEN("a freshly rebuilt balanced tree over 10 points with no violators") {
-        using P = detail::PointType<3>;
+        using P = copse::Point<3>;
         const std::vector<P> coords{
             P{0, 0, 0},
             P{1, 0, 0},
@@ -588,7 +594,7 @@ SCENARIO("TreeBuilder<3>::maybe_partial_rebuild leaves a balanced tree untouched
 SCENARIO("TreeBuilder<3>::maybe_partial_rebuild_full fires on a manufactured imbalance",
          "[tree_builder][partial_rebuild][imbalance]") {
     GIVEN("a balanced tree whose root subtree counts are skewed past alpha=0.7") {
-        using P = detail::PointType<3>;
+        using P = copse::Point<3>;
         const std::vector<P> coords{
             P{-1, 0, 0},
             P{-2, 0, 0},
@@ -646,7 +652,7 @@ SCENARIO("TreeBuilder<3>::maybe_partial_rebuild_full fires on a manufactured imb
 SCENARIO("TreeBuilder<3>::maybe_partial_rebuild fires when tombstone fraction crosses threshold",
          "[tree_builder][partial_rebuild][tombstone]") {
     GIVEN("a balanced tree where >= 25 percent of points get tombstoned") {
-        using P = detail::PointType<3>;
+        using P = copse::Point<3>;
         const std::vector<P> coords{
             P{0, 0, 0},
             P{1, 0, 0},
@@ -706,7 +712,7 @@ SCENARIO("TreeBuilder<3>::maybe_partial_rebuild fires when tombstone fraction cr
 SCENARIO("TreeBuilder<3>::insert_index proactively splits a leaf that hits its 2B cap",
          "[tree_builder][insert][eager_split]") {
     GIVEN("a tree with a single leaf seeded by 5 tightly-clustered points (cap=10)") {
-        using P = detail::PointType<3>;
+        using P = copse::Point<3>;
         const std::vector<P> initial_coords{
             P{0.0f, 0.0f, 0.0f},
             P{0.1f, 0.0f, 0.0f},
@@ -773,7 +779,7 @@ SCENARIO("TreeBuilder<3>::insert_index proactively splits a leaf that hits its 2
 SCENARIO("TreeBuilder<3>::maybe_partial_rebuild_full keeps the scapegoat slot index valid (in-place reuse)",
          "[tree_builder][partial_rebuild][in_place]") {
     GIVEN("a tree of 8 points where the root's right child is forced into imbalance") {
-        using P = detail::PointType<3>;
+        using P = copse::Point<3>;
         const std::vector<P> coords{
             P{-3, 0, 0},
             P{-2, 0, 0},
@@ -887,7 +893,7 @@ void check_live_counts(const std::vector<TreeNode>& nodes,
 SCENARIO("TreeBuilder<3>::box_delete agrees with the oracle and keeps subtree_live_count consistent",
          "[tree_builder][delete][box]") {
     GIVEN("a tree built from 256 uniform random D=3 points") {
-        using P = detail::PointType<3>;
+        using P = copse::Point<3>;
 
         constexpr std::size_t N = 256;
 
@@ -917,25 +923,22 @@ SCENARIO("TreeBuilder<3>::box_delete agrees with the oracle and keeps subtree_li
         const auto root = builder.rebuild(live_indices);
 
         WHEN("box_delete runs with a sub-box of the extent") {
-            const P min_corner{-4.0f, -4.0f, -4.0f};
-            const P max_corner{4.0f, 4.0f, 4.0f};
+            const BBox<3> query_box{P{-4.0f, -4.0f, -4.0f}, P{4.0f, 4.0f, 4.0f}};
 
             std::size_t expected = 0;
             for (const auto& point : coords) {
-                if ((point.array() >= min_corner.array()).all() &&
-                    (point.array() <= max_corner.array()).all()) {
+                if (query_box.contains(point)) {
                     ++expected;
                 }
             }
 
-            const auto cleared = builder.box_delete(root, BBox<3>{min_corner, max_corner});
+            const auto cleared = builder.box_delete(root, query_box);
 
             THEN("the cleared count matches, no in-box point is live, and counts stay consistent") {
                 REQUIRE(cleared == expected);
                 REQUIRE(points.size() == N - expected);
                 for (std::uint32_t i = 0; i < N; ++i) {
-                    const bool in_box = (coords[i].array() >= min_corner.array()).all() &&
-                                        (coords[i].array() <= max_corner.array()).all();
+                    const bool in_box = query_box.contains(coords[i]);
                     REQUIRE(points.is_live(i) == !in_box);
                 }
                 check_live_counts<3>(nodes, leaf_buckets, points, root);
@@ -947,7 +950,7 @@ SCENARIO("TreeBuilder<3>::box_delete agrees with the oracle and keeps subtree_li
 SCENARIO("TreeBuilder<3>::radius_crop agrees with the oracle and keeps counts consistent",
          "[tree_builder][delete][radius]") {
     GIVEN("a tree built from 256 uniform random D=3 points") {
-        using P = detail::PointType<3>;
+        using P = copse::Point<3>;
 
         constexpr std::size_t N = 256;
 
@@ -983,7 +986,7 @@ SCENARIO("TreeBuilder<3>::radius_crop agrees with the oracle and keeps counts co
 
             std::size_t expected = 0;
             for (const auto& point : coords) {
-                if ((point - center).squaredNorm() > sq_radius) {
+                if (point.sq_dist(center) > sq_radius) {
                     ++expected;
                 }
             }
@@ -994,7 +997,7 @@ SCENARIO("TreeBuilder<3>::radius_crop agrees with the oracle and keeps counts co
                 REQUIRE(cleared == expected);
                 REQUIRE(points.size() == N - expected);
                 for (std::uint32_t i = 0; i < N; ++i) {
-                    const bool outside = (coords[i] - center).squaredNorm() > sq_radius;
+                    const bool outside = coords[i].sq_dist(center) > sq_radius;
                     REQUIRE(points.is_live(i) == !outside);
                 }
                 check_live_counts<3>(nodes, leaf_buckets, points, root);
@@ -1014,7 +1017,7 @@ SCENARIO("TreeBuilder<3>::box_delete on an INVALID root returns 0", "[tree_build
 
         WHEN("box_delete is invoked") {
             const auto cleared = builder.box_delete(
-                TreeNode::INVALID, BBox<3>{detail::PointType<3>{-1, -1, -1}, detail::PointType<3>{1, 1, 1}});
+                TreeNode::INVALID, BBox<3>{copse::Point<3>{-1, -1, -1}, copse::Point<3>{1, 1, 1}});
             THEN("the count is zero") {
                 REQUIRE(cleared == 0);
             }
@@ -1034,7 +1037,7 @@ SCENARIO("TreeBuilder<3>::radius_crop on an INVALID root returns 0",
 
         WHEN("radius_crop is invoked") {
             const auto cleared =
-                builder.radius_crop(TreeNode::INVALID, detail::PointType<3>{0, 0, 0}, 1.0f);
+                builder.radius_crop(TreeNode::INVALID, copse::Point<3>{0, 0, 0}, 1.0f);
             THEN("the count is zero") {
                 REQUIRE(cleared == 0);
             }

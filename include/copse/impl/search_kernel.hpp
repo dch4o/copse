@@ -17,7 +17,7 @@ namespace copse::internal {
 template <int Dim>
 class SearchKernel {
 public:
-    using Point    = detail::PointType<Dim>;
+    using Point    = copse::Point<Dim>;
     using Neighbor = typename copse::KDTree<Dim>::Neighbor;
 
     /// @brief Construct a kernel bound to the supplied storage.

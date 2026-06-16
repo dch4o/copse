@@ -34,7 +34,7 @@ void scan_leaf(const TreeNode&                          node,
         if (points.generation(entry.index) != entry.gen || !points.is_live(entry.index)) {
             continue;
         }
-        const float sq_dist = (points.point(entry.index) - query).squaredNorm();
+        const float sq_dist = points.point(entry.index).sq_dist(query);
         if (sq_dist >= worst_sq_dist) {
             continue;
         }
@@ -118,7 +118,7 @@ void collect_leaf(const TreeNode&                          node,
         if (points.generation(entry.index) != entry.gen || !points.is_live(entry.index)) {
             continue;
         }
-        const float sq_dist = (points.point(entry.index) - query).squaredNorm();
+        const float sq_dist = points.point(entry.index).sq_dist(query);
         if (sq_dist < sq_radius) {
             matches.push_back(entry.index);
         }
@@ -164,7 +164,7 @@ bool any_within_leaf(const TreeNode&                          node,
         if (points.generation(entry.index) != entry.gen || !points.is_live(entry.index)) {
             continue;
         }
-        const float sq_dist = (points.point(entry.index) - query).squaredNorm();
+        const float sq_dist = points.point(entry.index).sq_dist(query);
         if (sq_dist < sq_radius) {
             return true;
         }

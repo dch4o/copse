@@ -39,7 +39,7 @@ std::vector<Point> g_pending_insert;
 std::vector<Box>   g_pending_delete;
 
 Vec3 to_vec(const Point& point) {
-    return {point.x(), point.y(), point.z()};
+    return {point[0], point[1], point[2]};
 }
 
 std::vector<Point> random_cloud(std::mt19937& rng, std::size_t count) {
@@ -47,7 +47,7 @@ std::vector<Point> random_cloud(std::mt19937& rng, std::size_t count) {
     std::vector<Point>                    cloud;
     cloud.reserve(count);
     for (std::size_t i = 0; i < count; ++i) {
-        cloud.emplace_back(coord(rng), coord(rng), coord(rng));
+        cloud.push_back(Point{coord(rng), coord(rng), coord(rng)});
     }
     return cloud;
 }
@@ -63,8 +63,8 @@ struct Snapshot {
 
 void add_cell(Snapshot& snap, const Point& min_corner, const Point& max_corner) {
     const std::size_t base  = snap.cell_nodes.size();
-    const float       lo[3] = {min_corner.x(), min_corner.y(), min_corner.z()};
-    const float       hi[3] = {max_corner.x(), max_corner.y(), max_corner.z()};
+    const float       lo[3] = {min_corner[0], min_corner[1], min_corner[2]};
+    const float       hi[3] = {max_corner[0], max_corner[1], max_corner[2]};
     for (int corner = 0; corner < 8; ++corner) {
         snap.cell_nodes.push_back(
             {(corner & 1) ? hi[0] : lo[0], (corner & 2) ? hi[1] : lo[1], (corner & 4) ? hi[2] : lo[2]});
@@ -99,8 +99,10 @@ void walk(const Tree& tree, std::uint32_t node_idx, int& leaf_counter, Snapshot&
                 max_corner = point;
                 has_live   = true;
             } else {
-                min_corner = min_corner.cwiseMin(point);
-                max_corner = max_corner.cwiseMax(point);
+                for (int axis = 0; axis < 3; ++axis) {
+                    min_corner[axis] = std::min(min_corner[axis], point[axis]);
+                    max_corner[axis] = std::max(max_corner[axis], point[axis]);
+                }
             }
         }
         // Build the cell from live points only: a leaf emptied by a delete draws no
@@ -252,9 +254,9 @@ void user_callback() {
                 // Sweep the box along x so the cells visibly clear band by band.
                 constexpr int slices = 12;
                 for (int i = slices - 1; i >= 0; --i) {
-                    const float x0 = lo.x() + (hi.x() - lo.x()) * static_cast<float>(i) / slices;
-                    const float x1 = lo.x() + (hi.x() - lo.x()) * static_cast<float>(i + 1) / slices;
-                    g_pending_delete.push_back(Box{Point{x0, lo.y(), lo.z()}, Point{x1, hi.y(), hi.z()}});
+                    const float x0 = lo[0] + (hi[0] - lo[0]) * static_cast<float>(i) / slices;
+                    const float x1 = lo[0] + (hi[0] - lo[0]) * static_cast<float>(i + 1) / slices;
+                    g_pending_delete.push_back(Box{Point{x0, lo[1], lo[2]}, Point{x1, hi[1], hi[2]}});
                 }
             } else {
                 g_tree->box_delete({Box{lo, hi}});

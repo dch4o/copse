@@ -16,7 +16,7 @@ namespace copse::internal {
 template <int Dim>
 class TreeBuilder {
 public:
-    using Point = detail::PointType<Dim>;
+    using Point = copse::Point<Dim>;
 
     /// @brief Construct a builder bound to the supplied storage and rebuild knobs.
     /// @param nodes Node pool to build into.

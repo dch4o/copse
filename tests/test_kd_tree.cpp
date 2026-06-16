@@ -205,7 +205,7 @@ SCENARIO("KDTree3::knn_search agrees with a brute-force oracle on 1000 points",
                     std::vector<std::pair<std::uint32_t, float>> expected;
                     expected.reserve(N);
                     for (std::uint32_t i = 0; i < N; ++i) {
-                        expected.emplace_back(i, (coords[i] - query).squaredNorm());
+                        expected.emplace_back(i, coords[i].sq_dist(query));
                     }
                     std::sort(expected.begin(), expected.end(), [](const auto& lhs, const auto& rhs) {
                         return lhs.second < rhs.second;
@@ -271,7 +271,7 @@ SCENARIO("KDTree3 silently evicts oldest points when capacity is exceeded", "[kd
 
                 for (const auto& neighbor : result) {
                     for (std::size_t i = 0; i < N - Cap; ++i) {
-                        REQUIRE((neighbor.coord - coords[i]).norm() != 0.0f);
+                        REQUIRE(neighbor.coord.sq_dist(coords[i]) != 0.0f);
                     }
                 }
             }
@@ -321,7 +321,7 @@ SCENARIO("KDTree3::radius_search returns all points within radius", "[kd_tree][s
                         std::vector<float> expected;
                         expected.reserve(N);
                         for (std::size_t i = 0; i < N; ++i) {
-                            const float sq_dist = (coords[i] - query).squaredNorm();
+                            const float sq_dist = coords[i].sq_dist(query);
                             if (sq_dist < sq_radius) {
                                 expected.push_back(sq_dist);
                             }
@@ -394,7 +394,7 @@ SCENARIO("KDTree3::hybrid_search returns at most k points within radius", "[kd_t
                         std::vector<float> expected;
                         expected.reserve(N);
                         for (std::size_t i = 0; i < N; ++i) {
-                            const float sq_dist = (coords[i] - query).squaredNorm();
+                            const float sq_dist = coords[i].sq_dist(query);
                             if (sq_dist < sq_radius) {
                                 expected.push_back(sq_dist);
                             }
@@ -656,7 +656,7 @@ SCENARIO("KDTree3::rebuild_all after mutations agrees with the oracle on the liv
                     std::vector<float> expected;
                     expected.reserve(live.size());
                     for (const auto& point : live) {
-                        expected.push_back((point - query).squaredNorm());
+                        expected.push_back(point.sq_dist(query));
                     }
                     std::sort(expected.begin(), expected.end());
                     expected.resize(K);
@@ -716,7 +716,7 @@ SCENARIO("KDTree3 stays correct under axis-sorted (worst-case) input", "[kd_tree
                     std::vector<float> expected;
                     expected.reserve(N);
                     for (const auto& point : coords) {
-                        expected.push_back((point - query).squaredNorm());
+                        expected.push_back(point.sq_dist(query));
                     }
                     std::sort(expected.begin(), expected.end());
                     expected.resize(K);
@@ -780,7 +780,7 @@ SCENARIO("KDTree3::remove past the tombstone threshold triggers a partial rebuil
                     std::vector<float> expected;
                     expected.reserve(live.size());
                     for (const auto& point : live) {
-                        expected.push_back((point - query).squaredNorm());
+                        expected.push_back(point.sq_dist(query));
                     }
                     std::sort(expected.begin(), expected.end());
                     expected.resize(K);
@@ -843,14 +843,14 @@ SCENARIO("KDTree3::knn_search after remove never surfaces tombstoned coordinates
 
                 for (const auto& neighbor : result) {
                     for (auto removed_index : removed_indices) {
-                        REQUIRE((neighbor.coord - coords[removed_index]).norm() != 0.0f);
+                        REQUIRE(neighbor.coord.sq_dist(coords[removed_index]) != 0.0f);
                     }
                 }
 
                 std::vector<float> expected;
                 expected.reserve(live.size());
                 for (const auto& point : live) {
-                    expected.push_back((point - query).squaredNorm());
+                    expected.push_back(point.sq_dist(query));
                 }
                 std::sort(expected.begin(), expected.end());
                 for (std::size_t i = 0; i < live.size(); ++i) {
@@ -892,7 +892,7 @@ SCENARIO("KDTree3 FIFO eviction never surfaces evicted coordinates via stale lea
                 std::vector<float> expected;
                 expected.reserve(Cap);
                 for (std::size_t i = N - Cap; i < N; ++i) {
-                    expected.push_back((coords[i] - query).squaredNorm());
+                    expected.push_back(coords[i].sq_dist(query));
                 }
                 std::sort(expected.begin(), expected.end());
                 for (std::size_t i = 0; i < Cap; ++i) {
@@ -901,7 +901,7 @@ SCENARIO("KDTree3 FIFO eviction never surfaces evicted coordinates via stale lea
 
                 for (const auto& neighbor : result) {
                     for (std::size_t i = 0; i < N - Cap; ++i) {
-                        REQUIRE((neighbor.coord - coords[i]).norm() != 0.0f);
+                        REQUIRE(neighbor.coord.sq_dist(coords[i]) != 0.0f);
                     }
                 }
             }
@@ -966,7 +966,7 @@ SCENARIO("KDTree3::insert after remove rebuilds the tree correctly", "[kd_tree][
                     std::vector<float> expected;
                     expected.reserve(live.size());
                     for (const auto& point : live) {
-                        expected.push_back((point - query).squaredNorm());
+                        expected.push_back(point.sq_dist(query));
                     }
                     std::sort(expected.begin(), expected.end());
                     expected.resize(K);
@@ -985,8 +985,8 @@ SCENARIO("KDTree3::insert after remove rebuilds the tree correctly", "[kd_tree][
 namespace {
 
 template <int Dim>
-detail::PointType<Dim> random_point(std::mt19937& rng, std::uniform_real_distribution<float>& coord) {
-    detail::PointType<Dim> point;
+copse::Point<Dim> random_point(std::mt19937& rng, std::uniform_real_distribution<float>& coord) {
+    copse::Point<Dim> point;
     for (int d = 0; d < Dim; ++d) {
         point[d] = coord(rng);
     }
@@ -994,9 +994,18 @@ detail::PointType<Dim> random_point(std::mt19937& rng, std::uniform_real_distrib
 }
 
 template <int Dim>
-bool inside_box(const detail::PointType<Dim>& point,
-                const detail::PointType<Dim>& min_corner,
-                const detail::PointType<Dim>& max_corner) {
+copse::Point<Dim> filled(float value) {
+    copse::Point<Dim> point;
+    for (int d = 0; d < Dim; ++d) {
+        point[d] = value;
+    }
+    return point;
+}
+
+template <int Dim>
+bool inside_box(const copse::Point<Dim>& point,
+                const copse::Point<Dim>& min_corner,
+                const copse::Point<Dim>& max_corner) {
     for (int d = 0; d < Dim; ++d) {
         if (point[d] < min_corner[d] || point[d] > max_corner[d]) {
             return false;
@@ -1031,10 +1040,8 @@ TEMPLATE_TEST_CASE_SIG("KDTree::box_delete agrees with a linear oracle across D"
         Tree tree{{.capacity = N, .resolution = 1e-9f}};
         REQUIRE(tree.insert(coords) == N);
 
-        P min_corner;
-        P max_corner;
-        min_corner.setConstant(-40.0f);
-        max_corner.setConstant(40.0f);
+        const P min_corner = filled<Dim>(-40.0f);
+        const P max_corner = filled<Dim>(40.0f);
 
         WHEN("box_delete is called with that box") {
             const auto cleared = tree.box_delete({BBox<Dim>{min_corner, max_corner}});
@@ -1068,7 +1075,7 @@ TEMPLATE_TEST_CASE_SIG("KDTree::box_delete agrees with a linear oracle across D"
                         std::vector<float> expected;
                         expected.reserve(survivors.size());
                         for (const auto& point : survivors) {
-                            expected.push_back((point - query).squaredNorm());
+                            expected.push_back(point.sq_dist(query));
                         }
                         std::sort(expected.begin(), expected.end());
                         expected.resize(k);
@@ -1173,13 +1180,11 @@ TEMPLATE_TEST_CASE_SIG("KDTree::box_delete clears the union of a box batch in on
         REQUIRE(tree.insert(coords) == N);
 
         // Three boxes; the first two overlap so a point in the intersection is counted once.
-        std::vector<BBox<Dim>> boxes(3);
-        boxes[0].min_corner.setConstant(-60.0f);
-        boxes[0].max_corner.setConstant(0.0f);
-        boxes[1].min_corner.setConstant(-20.0f);
-        boxes[1].max_corner.setConstant(40.0f);
-        boxes[2].min_corner.setConstant(70.0f);
-        boxes[2].max_corner.setConstant(90.0f);
+        const std::vector<BBox<Dim>> boxes{
+            BBox<Dim>{filled<Dim>(-60.0f), filled<Dim>(0.0f)},
+            BBox<Dim>{filled<Dim>(-20.0f), filled<Dim>(40.0f)},
+            BBox<Dim>{filled<Dim>(70.0f), filled<Dim>(90.0f)},
+        };
 
         const auto in_any_box = [&](const P& point) {
             for (const auto& box : boxes) {
@@ -1223,7 +1228,7 @@ TEMPLATE_TEST_CASE_SIG("KDTree::box_delete clears the union of a box batch in on
                         std::vector<float> expected;
                         expected.reserve(survivors.size());
                         for (const auto& point : survivors) {
-                            expected.push_back((point - query).squaredNorm());
+                            expected.push_back(point.sq_dist(query));
                         }
                         std::sort(expected.begin(), expected.end());
                         expected.resize(k);
@@ -1263,8 +1268,7 @@ TEMPLATE_TEST_CASE_SIG("KDTree::radius_crop agrees with a linear oracle across D
         Tree tree{{.capacity = N, .resolution = 1e-9f}};
         REQUIRE(tree.insert(coords) == N);
 
-        P center;
-        center.setConstant(10.0f);
+        const P     center    = filled<Dim>(10.0f);
         const float radius    = 60.0f;
         const float sq_radius = radius * radius;
 
@@ -1274,7 +1278,7 @@ TEMPLATE_TEST_CASE_SIG("KDTree::radius_crop agrees with a linear oracle across D
                 std::size_t    expected_cleared = 0;
                 std::vector<P> survivors;
                 for (const auto& point : coords) {
-                    if ((point - center).squaredNorm() > sq_radius) {
+                    if (point.sq_dist(center) > sq_radius) {
                         ++expected_cleared;
                     } else {
                         survivors.push_back(point);
@@ -1287,7 +1291,7 @@ TEMPLATE_TEST_CASE_SIG("KDTree::radius_crop agrees with a linear oracle across D
                 const auto remaining = tree.radius_search(center, 1e6f);
                 REQUIRE(remaining.size() == survivors.size());
                 for (const auto& neighbor : remaining) {
-                    REQUIRE((neighbor.coord - center).squaredNorm() <= sq_radius);
+                    REQUIRE(neighbor.coord.sq_dist(center) <= sq_radius);
                 }
 
                 if (!survivors.empty()) {
@@ -1297,7 +1301,7 @@ TEMPLATE_TEST_CASE_SIG("KDTree::radius_crop agrees with a linear oracle across D
                         std::vector<float> expected;
                         expected.reserve(survivors.size());
                         for (const auto& point : survivors) {
-                            expected.push_back((point - query).squaredNorm());
+                            expected.push_back(point.sq_dist(query));
                         }
                         std::sort(expected.begin(), expected.end());
                         expected.resize(k);
@@ -1429,10 +1433,8 @@ SCENARIO("KDTree3 large spatial delete then rebuild_all yields the correct live 
         REQUIRE(tree.insert(coords) == N);
 
         // A box covering the bulk of the extent: most points fall inside.
-        P min_corner;
-        P max_corner;
-        min_corner.setConstant(-80.0f);
-        max_corner.setConstant(80.0f);
+        const P min_corner = filled<3>(-80.0f);
+        const P max_corner = filled<3>(80.0f);
 
         std::vector<P> survivors;
         for (const auto& point : coords) {
@@ -1456,7 +1458,7 @@ SCENARIO("KDTree3 large spatial delete then rebuild_all yields the correct live 
                     std::vector<float> expected;
                     expected.reserve(survivors.size());
                     for (const auto& point : survivors) {
-                        expected.push_back((point - query).squaredNorm());
+                        expected.push_back(point.sq_dist(query));
                     }
                     std::sort(expected.begin(), expected.end());
                     expected.resize(k);
@@ -1492,14 +1494,13 @@ SCENARIO("KDTree3 spatial delete then re-insert agrees with the oracle on the li
         Tree tree{{.capacity = N + Extra, .resolution = 1e-9f}};
         REQUIRE(tree.insert(coords) == N);
 
-        P center;
-        center.setConstant(0.0f);
+        const P     center    = filled<3>(0.0f);
         const float radius    = 50.0f;
         const float sq_radius = radius * radius;
 
         std::vector<P> live;
         for (const auto& point : coords) {
-            if ((point - center).squaredNorm() <= sq_radius) {
+            if (point.sq_dist(center) <= sq_radius) {
                 live.push_back(point);
             }
         }
@@ -1526,7 +1527,7 @@ SCENARIO("KDTree3 spatial delete then re-insert agrees with the oracle on the li
                     std::vector<float> expected;
                     expected.reserve(live.size());
                     for (const auto& point : live) {
-                        expected.push_back((point - query).squaredNorm());
+                        expected.push_back(point.sq_dist(query));
                     }
                     std::sort(expected.begin(), expected.end());
                     expected.resize(K);

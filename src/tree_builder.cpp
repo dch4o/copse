@@ -32,14 +32,15 @@ std::uint32_t build_recursive(std::vector<TreeNode>&  nodes,
         const auto offset = leaf_buckets.allocate(cap);
         auto       slice  = leaf_buckets.view(offset, cap);
         BBox<Dim>  leaf_bbox{};
-        leaf_bbox.min_corner.setConstant(std::numeric_limits<float>::infinity());
-        leaf_bbox.max_corner.setConstant(-std::numeric_limits<float>::infinity());
+        for (int dim = 0; dim < Dim; ++dim) {
+            leaf_bbox.min_corner[dim] = std::numeric_limits<float>::infinity();
+            leaf_bbox.max_corner[dim] = -std::numeric_limits<float>::infinity();
+        }
         for (std::size_t i = 0; i < count; ++i) {
-            const auto idx       = indices_begin[i];
-            slice[i]             = BucketEntry{idx, points.generation(idx)};
-            const auto& point    = points.point(idx);
-            leaf_bbox.min_corner = leaf_bbox.min_corner.cwiseMin(point);
-            leaf_bbox.max_corner = leaf_bbox.max_corner.cwiseMax(point);
+            const auto idx    = indices_begin[i];
+            slice[i]          = BucketEntry{idx, points.generation(idx)};
+            const auto& point = points.point(idx);
+            leaf_bbox.expand(point);
         }
         const auto bbox_idx = static_cast<std::uint32_t>(leaf_bboxes.size());
         leaf_bboxes.push_back(leaf_bbox);
@@ -281,39 +282,21 @@ std::size_t release_subtree(std::vector<TreeNode>& nodes,
 }
 
 template <int Dim>
-std::size_t box_delete_leaf(const TreeNode&               node,
-                               const LeafBucket&             leaf_buckets,
-                               PointStore<Dim>&              points,
-                               const detail::PointType<Dim>& min_corner,
-                               const detail::PointType<Dim>& max_corner) {
+std::size_t box_delete_leaf(const TreeNode&    node,
+                            const LeafBucket&  leaf_buckets,
+                            PointStore<Dim>&   points,
+                            const BBox<Dim>&   query_box) {
     std::size_t cleared = 0;
     for (const auto& entry : leaf_buckets.view(node.bucket_offset, node.bucket_size)) {
         if (points.generation(entry.index) != entry.gen || !points.is_live(entry.index)) {
             continue;
         }
-        const auto& point = points.point(entry.index);
-        if ((point.array() >= min_corner.array()).all() && (point.array() <= max_corner.array()).all()) {
+        if (query_box.contains(points.point(entry.index))) {
             points.release(entry.index);
             ++cleared;
         }
     }
     return cleared;
-}
-
-template <int Dim>
-bool box_disjoint(const BBox<Dim>&              partition,
-                  const detail::PointType<Dim>& min_corner,
-                  const detail::PointType<Dim>& max_corner) {
-    return (partition.max_corner.array() < min_corner.array()).any() ||
-           (partition.min_corner.array() > max_corner.array()).any();
-}
-
-template <int Dim>
-bool box_contained(const BBox<Dim>&              partition,
-                   const detail::PointType<Dim>& min_corner,
-                   const detail::PointType<Dim>& max_corner) {
-    return (partition.min_corner.array() >= min_corner.array()).all() &&
-           (partition.max_corner.array() <= max_corner.array()).all();
 }
 
 template <int Dim>
@@ -323,13 +306,12 @@ std::size_t box_delete_recurse(std::vector<TreeNode>&        nodes,
                                   PointStore<Dim>&              points,
                                   std::uint32_t                 node_idx,
                                   BBox<Dim>                     partition,
-                                  const detail::PointType<Dim>& min_corner,
-                                  const detail::PointType<Dim>& max_corner,
+                                  const BBox<Dim>&              query_box,
                                   std::vector<std::uint32_t>&   modified) {
-    if (box_disjoint<Dim>(partition, min_corner, max_corner)) {
+    if (query_box.disjoint(partition)) {
         return 0;
     }
-    if (box_contained<Dim>(partition, min_corner, max_corner)) {
+    if (query_box.contains(partition)) {
         const std::size_t cleared = release_subtree<Dim>(nodes, leaf_buckets, points, node_idx);
         if (cleared != 0) {
             modified.push_back(node_idx); // counts dropped to 0 → trigger must re-check this subtree
@@ -343,14 +325,14 @@ std::size_t box_delete_recurse(std::vector<TreeNode>&        nodes,
         // Tight leaf BBox refines the loose partition box before per-point checks. Leaves are not
         // violator-checked by deletes (no bucket growth), so ancestors carry the trigger record.
         const BBox<Dim>& leaf_bbox = leaf_bboxes[node.leaf_bbox_idx];
-        if (box_disjoint<Dim>(leaf_bbox, min_corner, max_corner)) {
+        if (query_box.disjoint(leaf_bbox)) {
             return 0;
         }
-        if (box_contained<Dim>(leaf_bbox, min_corner, max_corner)) {
+        if (query_box.contains(leaf_bbox)) {
             cleared = release_subtree<Dim>(nodes, leaf_buckets, points, node_idx);
             return cleared;
         }
-        cleared = box_delete_leaf<Dim>(node, leaf_buckets, points, min_corner, max_corner);
+        cleared = box_delete_leaf<Dim>(node, leaf_buckets, points, query_box);
         node.subtree_live_count -= static_cast<std::uint32_t>(cleared);
         return cleared;
     }
@@ -363,12 +345,12 @@ std::size_t box_delete_recurse(std::vector<TreeNode>&        nodes,
     BBox<Dim> left_box       = partition;
     left_box.max_corner[dim] = std::min(left_box.max_corner[dim], split);
     cleared += box_delete_recurse<Dim>(
-        nodes, leaf_buckets, leaf_bboxes, points, left, left_box, min_corner, max_corner, modified);
+        nodes, leaf_buckets, leaf_bboxes, points, left, left_box, query_box, modified);
 
     BBox<Dim> right_box       = partition;
     right_box.min_corner[dim] = std::max(right_box.min_corner[dim], split);
     cleared += box_delete_recurse<Dim>(
-        nodes, leaf_buckets, leaf_bboxes, points, right, right_box, min_corner, max_corner, modified);
+        nodes, leaf_buckets, leaf_bboxes, points, right, right_box, query_box, modified);
 
     nodes[node_idx].subtree_live_count -= static_cast<std::uint32_t>(cleared);
     if (cleared != 0) {
@@ -378,31 +360,17 @@ std::size_t box_delete_recurse(std::vector<TreeNode>&        nodes,
 }
 
 template <int Dim>
-float box_nearest_sq_dist(const BBox<Dim>& partition, const detail::PointType<Dim>& center) {
-    const auto below = (partition.min_corner.array() - center.array()).max(0.0f);
-    const auto above = (center.array() - partition.max_corner.array()).max(0.0f);
-    return (below.square() + above.square()).sum();
-}
-
-template <int Dim>
-float box_farthest_sq_dist(const BBox<Dim>& partition, const detail::PointType<Dim>& center) {
-    const auto to_min = (center.array() - partition.min_corner.array()).abs();
-    const auto to_max = (center.array() - partition.max_corner.array()).abs();
-    return to_min.max(to_max).square().sum();
-}
-
-template <int Dim>
-std::size_t radius_crop_leaf(const TreeNode&               node,
-                                       const LeafBucket&             leaf_buckets,
-                                       PointStore<Dim>&              points,
-                                       const detail::PointType<Dim>& center,
-                                       float                         sq_radius) {
+std::size_t radius_crop_leaf(const TreeNode&    node,
+                             const LeafBucket&  leaf_buckets,
+                             PointStore<Dim>&   points,
+                             const Point<Dim>&  center,
+                             float              sq_radius) {
     std::size_t cleared = 0;
     for (const auto& entry : leaf_buckets.view(node.bucket_offset, node.bucket_size)) {
         if (points.generation(entry.index) != entry.gen || !points.is_live(entry.index)) {
             continue;
         }
-        if ((points.point(entry.index) - center).squaredNorm() > sq_radius) {
+        if (points.point(entry.index).sq_dist(center) > sq_radius) {
             points.release(entry.index);
             ++cleared;
         }
@@ -417,15 +385,15 @@ std::size_t radius_crop_recurse(std::vector<TreeNode>&        nodes,
                                           PointStore<Dim>&              points,
                                           std::uint32_t                 node_idx,
                                           BBox<Dim>                     partition,
-                                          const detail::PointType<Dim>& center,
+                                          const Point<Dim>&             center,
                                           float                         sq_radius,
                                           std::vector<std::uint32_t>&   modified) {
     // Partition fully inside the sphere: every point is within r, keep all.
-    if (box_farthest_sq_dist<Dim>(partition, center) <= sq_radius) {
+    if (partition.max_sq_dist(center) <= sq_radius) {
         return 0;
     }
     // Partition fully outside the sphere: every point is strictly outside, release all.
-    if (box_nearest_sq_dist<Dim>(partition, center) > sq_radius) {
+    if (partition.min_sq_dist(center) > sq_radius) {
         const std::size_t cleared = release_subtree<Dim>(nodes, leaf_buckets, points, node_idx);
         if (cleared != 0) {
             modified.push_back(node_idx);
@@ -437,10 +405,10 @@ std::size_t radius_crop_recurse(std::vector<TreeNode>&        nodes,
     std::size_t cleared = 0;
     if (node.is_leaf) {
         const BBox<Dim>& leaf_bbox = leaf_bboxes[node.leaf_bbox_idx];
-        if (box_farthest_sq_dist<Dim>(leaf_bbox, center) <= sq_radius) {
+        if (leaf_bbox.max_sq_dist(center) <= sq_radius) {
             return 0;
         }
-        if (box_nearest_sq_dist<Dim>(leaf_bbox, center) > sq_radius) {
+        if (leaf_bbox.min_sq_dist(center) > sq_radius) {
             return release_subtree<Dim>(nodes, leaf_buckets, points, node_idx);
         }
         cleared = radius_crop_leaf<Dim>(node, leaf_buckets, points, center, sq_radius);
@@ -496,12 +464,12 @@ std::uint32_t TreeBuilder<Dim>::rebuild(std::span<std::uint32_t> live_indices) {
     if (live_indices.empty()) {
         return TreeNode::INVALID;
     }
-    root_bbox_.min_corner.setConstant(std::numeric_limits<float>::infinity());
-    root_bbox_.max_corner.setConstant(-std::numeric_limits<float>::infinity());
+    for (int dim = 0; dim < Dim; ++dim) {
+        root_bbox_.min_corner[dim] = std::numeric_limits<float>::infinity();
+        root_bbox_.max_corner[dim] = -std::numeric_limits<float>::infinity();
+    }
     for (auto idx : live_indices) {
-        const auto& point     = points_.point(idx);
-        root_bbox_.min_corner = root_bbox_.min_corner.cwiseMin(point);
-        root_bbox_.max_corner = root_bbox_.max_corner.cwiseMax(point);
+        root_bbox_.expand(points_.point(idx));
     }
     return build_recursive<Dim>(nodes_,
                                 leaf_buckets_,
@@ -565,9 +533,8 @@ void TreeBuilder<Dim>::maybe_partial_rebuild_full(std::uint32_t current_root) {
 
 template <int Dim>
 void TreeBuilder<Dim>::insert_index(std::uint32_t root, std::uint32_t index) {
-    const auto& point     = points_.point(index);
-    root_bbox_.min_corner = root_bbox_.min_corner.cwiseMin(point);
-    root_bbox_.max_corner = root_bbox_.max_corner.cwiseMax(point);
+    const auto& point = points_.point(index);
+    root_bbox_.expand(point);
 
     std::uint32_t node_idx = root;
     while (true) {
@@ -580,9 +547,7 @@ void TreeBuilder<Dim>::insert_index(std::uint32_t root, std::uint32_t index) {
                 leaf_buckets_.push(node.bucket_offset, node.bucket_size, node.bucket_capacity, entry);
             assert(ok && "LeafBucket::push failed despite eager split");
             (void)ok;
-            auto& bbox      = leaf_bboxes_[node.leaf_bbox_idx];
-            bbox.min_corner = bbox.min_corner.cwiseMin(point);
-            bbox.max_corner = bbox.max_corner.cwiseMax(point);
+            leaf_bboxes_[node.leaf_bbox_idx].expand(point);
             // Proactive split: a leaf that just reached its 2B cap is split now so a
             // same-batch insert routing here lands in one of the new children.
             if (node.bucket_size == node.bucket_capacity) {
@@ -615,15 +580,8 @@ std::size_t TreeBuilder<Dim>::box_delete(std::uint32_t root, const BBox<Dim>& bo
     if (root == TreeNode::INVALID) {
         return 0;
     }
-    return box_delete_recurse<Dim>(nodes_,
-                                      leaf_buckets_,
-                                      leaf_bboxes_,
-                                      points_,
-                                      root,
-                                      root_bbox_,
-                                      box.min_corner,
-                                      box.max_corner,
-                                      modified_nodes_);
+    return box_delete_recurse<Dim>(
+        nodes_, leaf_buckets_, leaf_bboxes_, points_, root, root_bbox_, box, modified_nodes_);
 }
 
 template <int Dim>

@@ -2,8 +2,7 @@
 
 #include "copse/bbox.hpp"
 #include "copse/impl/point_traits.hpp"
-
-#include <Eigen/Core>
+#include "copse/point.hpp"
 
 #include <cstddef>
 #include <initializer_list>
@@ -27,7 +26,7 @@ template <int Dim>
     requires detail::SupportedDim<Dim>
 class KDTree {
 public:
-    using Point = detail::PointType<Dim>; /// Canonical Eigen column-vector point type.
+    using Point = copse::Point<Dim>; /// Plain float point type of dimension `Dim`.
 
     /// @brief Construction-time configuration; preconditions enforced at construction.
     struct Config {
