@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 Dohoon Cho
+// SPDX-License-Identifier: MIT
 // PCL-free shim for ikd-Tree.
 //
 // Upstream `ikd_Tree.h` does `#include <pcl/point_types.h>` solely to pull in

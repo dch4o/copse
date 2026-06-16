@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 Dohoon Cho
+// SPDX-License-Identifier: MIT
 // Microbenchmark: rebuild tail latency at N=1M. Pairs partial-rebuild
 // steady-state cost (insert that may trigger a scapegoat rebuild) against
 // the explicit full rebuild_all() reference.

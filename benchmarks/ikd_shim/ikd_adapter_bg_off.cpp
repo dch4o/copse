@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 Dohoon Cho
+// SPDX-License-Identifier: MIT
 // Mode (b) adapter — ikd background rebuild OFF. The rebuild-gate and rename
 // macros come from `-include ikd_bg_off.h` on this object target; the shared
 // body binds them to the facade.

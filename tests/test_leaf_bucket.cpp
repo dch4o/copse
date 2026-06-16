@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 Dohoon Cho
+// SPDX-License-Identifier: MIT
 // BDD tests for LeafBucket: allocate offsets and view slices into the backing buffer.
 
 #include "copse/impl/leaf_bucket.hpp"

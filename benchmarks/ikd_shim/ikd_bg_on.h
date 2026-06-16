@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 Dohoon Cho
+// SPDX-License-Identifier: MIT
 // Mode (c) — ikd-Tree as shipped, background rebuild ON.
 //
 // Force-included (`-include`) ahead of the upstream `ikd_Tree.h` when compiling

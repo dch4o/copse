@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 Dohoon Cho
+// SPDX-License-Identifier: MIT
 // BDD tests for PointStore<Dim>: capacity, liveness, point read-back, and acquire semantics.
 
 #include "copse/impl/point_store.hpp"

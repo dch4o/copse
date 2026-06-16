@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 Dohoon Cho
+// SPDX-License-Identifier: MIT
 // Microbenchmark: search-path latency. Single-query measurements against a
 // pre-built tree (knn k=1/8/32, radius, hybrid) and mixed-cycle throughput
 // (1 small insert batch followed by a query burst) at two live-point scales.

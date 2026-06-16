@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 Dohoon Cho
+// SPDX-License-Identifier: MIT
 // BDD sanity tests for the TreeNode tagged-union record.
 
 #include "copse/impl/tree_node.hpp"

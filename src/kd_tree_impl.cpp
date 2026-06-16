@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 Dohoon Cho
+// SPDX-License-Identifier: MIT
 #include "copse/impl/kd_tree_impl.hpp"
 
 #include <limits>

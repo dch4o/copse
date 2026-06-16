@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 Dohoon Cho
+// SPDX-License-Identifier: MIT
 // Demo 1 — public-API client (3D, Polyscope).
 //
 // Uses only copse::KDTree<3>. The live cloud is enumerated through the public

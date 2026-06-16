@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 Dohoon Cho
+// SPDX-License-Identifier: MIT
 // Shared body for the per-mode ikd facade adapters.
 //
 // Included by `ikd_adapter_bg_off.cpp` and `ikd_adapter_bg_on.cpp` AFTER each

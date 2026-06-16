@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 Dohoon Cho
+// SPDX-License-Identifier: MIT
 // BDD tests for SearchKernel<Dim>: brute-force agreement on random inputs across D ∈ {2, 3, 4}.
 
 #include "copse/impl/leaf_bucket.hpp"

@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 Dohoon Cho
+// SPDX-License-Identifier: MIT
 // Microbenchmark: remove per-call cost across query-list sizes at fixed N.
 // Covers the remove path (collect_indices_within + tombstone_index + release
 // per match + end-of-batch maybe_partial_rebuild). Query coordinates are

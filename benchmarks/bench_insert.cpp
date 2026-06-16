@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 Dohoon Cho
+// SPDX-License-Identifier: MIT
 // Microbenchmark: insert per-call cost across capacities, batch sizes, and
 // FIFO-eviction regime. TEST_CASEs slice the matrix differently — batch-size
 // sweep, full-tree warm path, capacity sweep × cold/warm regime.

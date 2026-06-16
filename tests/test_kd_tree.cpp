@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 Dohoon Cho
+// SPDX-License-Identifier: MIT
 // BDD tests for the public KDTree<Dim> facade.
 // Black-box behavior only — internal helpers have their own test files.
 

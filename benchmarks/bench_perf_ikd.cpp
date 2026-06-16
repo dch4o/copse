@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 Dohoon Cho
+// SPDX-License-Identifier: MIT
 // ikd-Tree comparative benchmark — plain `int main()` harness.
 //
 // Compares `copse::KDTree3` against the HKU MARS ikd-Tree across three run

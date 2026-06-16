@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 Dohoon Cho
+// SPDX-License-Identifier: MIT
 // BDD tests for TreeBuilder<Dim>::rebuild on a small fixed point set.
 
 #include "copse/impl/leaf_bucket.hpp"

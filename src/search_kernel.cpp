@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 Dohoon Cho
+// SPDX-License-Identifier: MIT
 #include "copse/impl/search_kernel.hpp"
 
 #include <algorithm>

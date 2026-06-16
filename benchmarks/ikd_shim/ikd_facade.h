@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 Dohoon Cho
+// SPDX-License-Identifier: MIT
 // Type-erased facade over the ikd-Tree, one concrete impl per run mode.
 //
 // The harness talks to ikd through this header alone and never includes the

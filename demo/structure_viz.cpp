@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 Dohoon Cho
+// SPDX-License-Identifier: MIT
 // Demo 2 — kd-tree structure viewer (3D, Polyscope).
 //
 // Reassembles the kd-tree's internal building blocks in the demo (the library is
