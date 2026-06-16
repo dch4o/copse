@@ -28,6 +28,12 @@ std::size_t KDTree<Dim>::insert(std::span<const Point> points) {
 
 template <int Dim>
     requires detail::SupportedDim<Dim>
+std::size_t KDTree<Dim>::insert(std::initializer_list<Point> points) {
+    return insert(std::span<const Point>(points.begin(), points.size()));
+}
+
+template <int Dim>
+    requires detail::SupportedDim<Dim>
 std::size_t KDTree<Dim>::remove(std::span<const Point> queries) {
     return impl_->remove(queries);
 }
@@ -53,20 +59,20 @@ auto KDTree<Dim>::hybrid_search(const Point& query, std::size_t k, float radius)
 
 template <int Dim>
     requires detail::SupportedDim<Dim>
-std::size_t KDTree<Dim>::delete_box(const BBox<Dim>& box) {
-    return impl_->delete_box(box);
+std::size_t KDTree<Dim>::box_delete(std::span<const BBox<Dim>> boxes) {
+    return impl_->box_delete(boxes);
 }
 
 template <int Dim>
     requires detail::SupportedDim<Dim>
-std::size_t KDTree<Dim>::delete_boxes(std::span<const BBox<Dim>> boxes) {
-    return impl_->delete_boxes(boxes);
+std::size_t KDTree<Dim>::box_delete(std::initializer_list<BBox<Dim>> boxes) {
+    return box_delete(std::span<const BBox<Dim>>(boxes.begin(), boxes.size()));
 }
 
 template <int Dim>
     requires detail::SupportedDim<Dim>
-std::size_t KDTree<Dim>::delete_outside_radius(const Point& center, float r) {
-    return impl_->delete_outside_radius(center, r);
+std::size_t KDTree<Dim>::radius_crop(const Point& center, float r) {
+    return impl_->radius_crop(center, r);
 }
 
 template <int Dim>

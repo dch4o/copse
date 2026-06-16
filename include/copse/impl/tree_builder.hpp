@@ -64,14 +64,14 @@ public:
     /// @param root Tree root to descend from.
     /// @param box Axis-aligned box to clear.
     /// @return Count of indices cleared.
-    std::size_t delete_box(std::uint32_t root, const BBox<Dim>& box);
+    std::size_t box_delete(std::uint32_t root, const BBox<Dim>& box);
 
     /// @brief Release every live index strictly outside the r-sphere around `center`.
     /// @param root Tree root to descend from.
     /// @param center Sphere center.
     /// @param r Sphere radius.
     /// @return Count of indices cleared.
-    std::size_t delete_outside_radius(std::uint32_t root, const Point& center, float r);
+    std::size_t radius_crop(std::uint32_t root, const Point& center, float r);
 
 private:
     std::vector<TreeNode>&  nodes_;

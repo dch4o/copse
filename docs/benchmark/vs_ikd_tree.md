@@ -118,7 +118,7 @@ ikd's per-node AABB.
 ## Spatial delete (box batch, per-box)
 
 A 4×4×4 grid of 64 half-open boxes over the lower-half extent, deleted in one
-batched call (copse `delete_boxes`, ikd `Delete_Point_Boxes`), with a single
+batched call (copse `box_delete`, ikd `Delete_Point_Boxes`), with a single
 end-of-batch rebuild; per-box over the 64 boxes. Tree rebuilt fresh each rep.
 
 | N    | Mode           | Wall mean | CPU mean | Wall stddev | Per-box |

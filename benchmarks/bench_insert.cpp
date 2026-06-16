@@ -2,7 +2,7 @@
 // FIFO-eviction regime. TEST_CASEs slice the matrix differently — batch-size
 // sweep, full-tree warm path, capacity sweep × cold/warm regime.
 
-#include "copse/copse.hpp"
+#include "copse/kd_tree.hpp"
 
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_test_macros.hpp>

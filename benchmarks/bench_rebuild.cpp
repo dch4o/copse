@@ -2,7 +2,7 @@
 // steady-state cost (insert that may trigger a scapegoat rebuild) against
 // the explicit full rebuild_all() reference.
 
-#include "copse/copse.hpp"
+#include "copse/kd_tree.hpp"
 
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_test_macros.hpp>

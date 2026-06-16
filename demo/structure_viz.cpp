@@ -152,7 +152,7 @@ void step_animation() {
     } else if (!g_pending_delete.empty()) {
         const Box box = g_pending_delete.back();
         g_pending_delete.pop_back();
-        g_tree->delete_box(box);
+        g_tree->box_delete({box});
         refresh();
     }
 }
@@ -257,7 +257,7 @@ void user_callback() {
                     g_pending_delete.push_back(Box{Point{x0, lo.y(), lo.z()}, Point{x1, hi.y(), hi.z()}});
                 }
             } else {
-                g_tree->delete_box(Box{lo, hi});
+                g_tree->box_delete({Box{lo, hi}});
                 refresh();
             }
         }
@@ -266,7 +266,7 @@ void user_callback() {
         static float crop_radius = 50.0f;
         ImGui::SliderFloat("crop radius", &crop_radius, 5.0f, kExtent);
         if (ImGui::Button("delete outside crop radius (around query point)")) {
-            g_tree->delete_outside_radius(query.as_point(), crop_radius);
+            g_tree->radius_crop(query.as_point(), crop_radius);
             refresh();
         }
     }

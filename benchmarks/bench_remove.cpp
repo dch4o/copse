@@ -4,7 +4,7 @@
 // sampled from the prefill so every query matches at least one live point,
 // avoiding the "uniform queries miss everything" trap.
 
-#include "copse/copse.hpp"
+#include "copse/kd_tree.hpp"
 
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_test_macros.hpp>

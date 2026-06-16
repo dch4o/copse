@@ -1,7 +1,7 @@
 // BDD tests for the public KDTree<Dim> facade.
 // Black-box behavior only — internal helpers have their own test files.
 
-#include "copse/copse.hpp"
+#include "copse/kd_tree.hpp"
 
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -1007,7 +1007,7 @@ bool inside_box(const detail::PointType<Dim>& point,
 
 } // namespace
 
-TEMPLATE_TEST_CASE_SIG("KDTree::delete_box agrees with a linear oracle across D",
+TEMPLATE_TEST_CASE_SIG("KDTree::box_delete agrees with a linear oracle across D",
                        "[kd_tree][delete][box][oracle]",
                        ((int Dim), Dim),
                        (2),
@@ -1036,8 +1036,8 @@ TEMPLATE_TEST_CASE_SIG("KDTree::delete_box agrees with a linear oracle across D"
         min_corner.setConstant(-40.0f);
         max_corner.setConstant(40.0f);
 
-        WHEN("delete_box is called with that box") {
-            const auto cleared = tree.delete_box(BBox<Dim>{min_corner, max_corner});
+        WHEN("box_delete is called with that box") {
+            const auto cleared = tree.box_delete({BBox<Dim>{min_corner, max_corner}});
             THEN("the cleared count, live size, and remaining set match the oracle") {
                 std::size_t    expected_cleared = 0;
                 std::vector<P> survivors;
@@ -1084,16 +1084,16 @@ TEMPLATE_TEST_CASE_SIG("KDTree::delete_box agrees with a linear oracle across D"
     }
 }
 
-SCENARIO("KDTree3::delete_box with an empty box clears nothing", "[kd_tree][delete][box][edge]") {
+SCENARIO("KDTree3::box_delete with an empty box clears nothing", "[kd_tree][delete][box][edge]") {
     GIVEN("a tree with clustered points and an inverted (empty) box") {
         KDTree<3> tree{{.capacity = 16, .resolution = 1e-9f}};
         using P = KDTree<3>::Point;
         const std::vector<P> batch{P{0, 0, 0}, P{1, 1, 1}, P{2, 2, 2}};
         REQUIRE(tree.insert(batch) == 3);
 
-        WHEN("delete_box is called with min_corner > max_corner") {
+        WHEN("box_delete is called with min_corner > max_corner") {
             // An inverted box contains no point, so nothing is inside it.
-            const auto cleared = tree.delete_box(BBox<3>{P{10, 10, 10}, P{-10, -10, -10}});
+            const auto cleared = tree.box_delete({BBox<3>{P{10, 10, 10}, P{-10, -10, -10}}});
             THEN("nothing is cleared and size is unchanged") {
                 REQUIRE(cleared == 0);
                 REQUIRE(tree.size() == 3);
@@ -1102,7 +1102,7 @@ SCENARIO("KDTree3::delete_box with an empty box clears nothing", "[kd_tree][dele
     }
 }
 
-SCENARIO("KDTree3::delete_box covering every live point empties the tree",
+SCENARIO("KDTree3::box_delete covering every live point empties the tree",
          "[kd_tree][delete][box][edge]") {
     GIVEN("a tree of 300 random points and a box covering the whole extent") {
         using Tree = KDTree<3>;
@@ -1122,8 +1122,8 @@ SCENARIO("KDTree3::delete_box covering every live point empties the tree",
         Tree tree{{.capacity = N, .resolution = 1e-9f}};
         REQUIRE(tree.insert(coords) == N);
 
-        WHEN("delete_box covers the full coordinate range") {
-            const auto cleared = tree.delete_box(BBox<3>{P{-1000, -1000, -1000}, P{1000, 1000, 1000}});
+        WHEN("box_delete covers the full coordinate range") {
+            const auto cleared = tree.box_delete({BBox<3>{P{-1000, -1000, -1000}, P{1000, 1000, 1000}}});
             THEN("every point is cleared and subsequent searches are empty") {
                 REQUIRE(cleared == N);
                 REQUIRE(tree.size() == 0);
@@ -1134,12 +1134,12 @@ SCENARIO("KDTree3::delete_box covering every live point empties the tree",
     }
 }
 
-SCENARIO("KDTree3::delete_box on an empty tree returns 0", "[kd_tree][delete][box][edge]") {
+SCENARIO("KDTree3::box_delete on an empty tree returns 0", "[kd_tree][delete][box][edge]") {
     GIVEN("a freshly constructed tree") {
         KDTree<3> tree{{.capacity = 8, .resolution = 0.01f}};
         using P = KDTree<3>::Point;
-        WHEN("delete_box is called") {
-            const auto cleared = tree.delete_box(BBox<3>{P{-1, -1, -1}, P{1, 1, 1}});
+        WHEN("box_delete is called") {
+            const auto cleared = tree.box_delete({BBox<3>{P{-1, -1, -1}, P{1, 1, 1}}});
             THEN("the count is zero and the tree stays empty") {
                 REQUIRE(cleared == 0);
                 REQUIRE(tree.size() == 0);
@@ -1148,7 +1148,7 @@ SCENARIO("KDTree3::delete_box on an empty tree returns 0", "[kd_tree][delete][bo
     }
 }
 
-TEMPLATE_TEST_CASE_SIG("KDTree::delete_boxes clears the union of a box batch in one rebuild",
+TEMPLATE_TEST_CASE_SIG("KDTree::box_delete clears the union of a box batch in one rebuild",
                        "[kd_tree][delete][boxes][oracle]",
                        ((int Dim), Dim),
                        (2),
@@ -1190,8 +1190,8 @@ TEMPLATE_TEST_CASE_SIG("KDTree::delete_boxes clears the union of a box batch in 
             return false;
         };
 
-        WHEN("delete_boxes is called with the whole batch") {
-            const auto cleared = tree.delete_boxes(std::span<const BBox<Dim>>{boxes.data(), boxes.size()});
+        WHEN("box_delete is called with the whole batch") {
+            const auto cleared = tree.box_delete(std::span<const BBox<Dim>>{boxes.data(), boxes.size()});
 
             THEN("the cleared count equals the union size and survivors agree with the oracle") {
                 std::size_t    expected_cleared = 0;
@@ -1239,7 +1239,7 @@ TEMPLATE_TEST_CASE_SIG("KDTree::delete_boxes clears the union of a box batch in 
     }
 }
 
-TEMPLATE_TEST_CASE_SIG("KDTree::delete_outside_radius agrees with a linear oracle across D",
+TEMPLATE_TEST_CASE_SIG("KDTree::radius_crop agrees with a linear oracle across D",
                        "[kd_tree][delete][radius][oracle]",
                        ((int Dim), Dim),
                        (2),
@@ -1268,8 +1268,8 @@ TEMPLATE_TEST_CASE_SIG("KDTree::delete_outside_radius agrees with a linear oracl
         const float radius    = 60.0f;
         const float sq_radius = radius * radius;
 
-        WHEN("delete_outside_radius is called with that sphere") {
-            const auto cleared = tree.delete_outside_radius(center, radius);
+        WHEN("radius_crop is called with that sphere") {
+            const auto cleared = tree.radius_crop(center, radius);
             THEN("the cleared count, live size, and remaining set match the oracle") {
                 std::size_t    expected_cleared = 0;
                 std::vector<P> survivors;
@@ -1313,7 +1313,7 @@ TEMPLATE_TEST_CASE_SIG("KDTree::delete_outside_radius agrees with a linear oracl
     }
 }
 
-SCENARIO("KDTree3::delete_outside_radius with radius 0 clears every point",
+SCENARIO("KDTree3::radius_crop with radius 0 clears every point",
          "[kd_tree][delete][radius][edge]") {
     GIVEN("a tree of 200 random points and a center coincident with no stored point") {
         using Tree = KDTree<3>;
@@ -1333,8 +1333,8 @@ SCENARIO("KDTree3::delete_outside_radius with radius 0 clears every point",
         Tree tree{{.capacity = N, .resolution = 1e-9f}};
         REQUIRE(tree.insert(coords) == N);
 
-        WHEN("delete_outside_radius is called with r = 0 around a fresh center") {
-            const auto cleared = tree.delete_outside_radius(P{1000, 1000, 1000}, 0.0f);
+        WHEN("radius_crop is called with r = 0 around a fresh center") {
+            const auto cleared = tree.radius_crop(P{1000, 1000, 1000}, 0.0f);
             THEN("every point is strictly outside and gets cleared") {
                 REQUIRE(cleared == N);
                 REQUIRE(tree.size() == 0);
@@ -1343,7 +1343,7 @@ SCENARIO("KDTree3::delete_outside_radius with radius 0 clears every point",
     }
 }
 
-SCENARIO("KDTree3::delete_outside_radius keeps a point exactly on the sphere",
+SCENARIO("KDTree3::radius_crop keeps a point exactly on the sphere",
          "[kd_tree][delete][radius][edge]") {
     GIVEN("a tree with one point at distance 3 from the center along x") {
         KDTree<3> tree{{.capacity = 8, .resolution = 1e-9f}};
@@ -1351,8 +1351,8 @@ SCENARIO("KDTree3::delete_outside_radius keeps a point exactly on the sphere",
         const std::vector<P> batch{P{3, 0, 0}, P{100, 0, 0}};
         REQUIRE(tree.insert(batch) == 2);
 
-        WHEN("delete_outside_radius is called with center origin and r = 3") {
-            const auto cleared = tree.delete_outside_radius(P{0, 0, 0}, 3.0f);
+        WHEN("radius_crop is called with center origin and r = 3") {
+            const auto cleared = tree.radius_crop(P{0, 0, 0}, 3.0f);
             THEN("the on-sphere point survives and only the far point is cleared") {
                 REQUIRE(cleared == 1);
                 REQUIRE(tree.size() == 1);
@@ -1364,7 +1364,7 @@ SCENARIO("KDTree3::delete_outside_radius keeps a point exactly on the sphere",
     }
 }
 
-SCENARIO("KDTree3::delete_outside_radius with radius beyond the extent clears nothing",
+SCENARIO("KDTree3::radius_crop with radius beyond the extent clears nothing",
          "[kd_tree][delete][radius][edge]") {
     GIVEN("a tree of 200 random points and a huge radius") {
         using Tree = KDTree<3>;
@@ -1384,8 +1384,8 @@ SCENARIO("KDTree3::delete_outside_radius with radius beyond the extent clears no
         Tree tree{{.capacity = N, .resolution = 1e-9f}};
         REQUIRE(tree.insert(coords) == N);
 
-        WHEN("delete_outside_radius runs with r larger than the whole root extent") {
-            const auto cleared = tree.delete_outside_radius(P{0, 0, 0}, 1e6f);
+        WHEN("radius_crop runs with r larger than the whole root extent") {
+            const auto cleared = tree.radius_crop(P{0, 0, 0}, 1e6f);
             THEN("nothing is cleared and the live set is intact") {
                 REQUIRE(cleared == 0);
                 REQUIRE(tree.size() == N);
@@ -1394,12 +1394,12 @@ SCENARIO("KDTree3::delete_outside_radius with radius beyond the extent clears no
     }
 }
 
-SCENARIO("KDTree3::delete_outside_radius on an empty tree returns 0", "[kd_tree][delete][radius][edge]") {
+SCENARIO("KDTree3::radius_crop on an empty tree returns 0", "[kd_tree][delete][radius][edge]") {
     GIVEN("a freshly constructed tree") {
         KDTree<3> tree{{.capacity = 8, .resolution = 0.01f}};
         using P = KDTree<3>::Point;
-        WHEN("delete_outside_radius is called") {
-            const auto cleared = tree.delete_outside_radius(P{0, 0, 0}, 1.0f);
+        WHEN("radius_crop is called") {
+            const auto cleared = tree.radius_crop(P{0, 0, 0}, 1.0f);
             THEN("the count is zero and the tree stays empty") {
                 REQUIRE(cleared == 0);
                 REQUIRE(tree.size() == 0);
@@ -1441,8 +1441,8 @@ SCENARIO("KDTree3 large spatial delete then rebuild_all yields the correct live 
             }
         }
 
-        WHEN("delete_box runs, then rebuild_all, then knn over the live set") {
-            const auto cleared = tree.delete_box(BBox<3>{min_corner, max_corner});
+        WHEN("box_delete runs, then rebuild_all, then knn over the live set") {
+            const auto cleared = tree.box_delete({BBox<3>{min_corner, max_corner}});
             REQUIRE(cleared == N - survivors.size());
             REQUIRE(tree.size() == survivors.size());
 
@@ -1504,8 +1504,8 @@ SCENARIO("KDTree3 spatial delete then re-insert agrees with the oracle on the li
             }
         }
 
-        WHEN("delete_outside_radius runs, then a disjoint batch is inserted") {
-            const auto cleared = tree.delete_outside_radius(center, radius);
+        WHEN("radius_crop runs, then a disjoint batch is inserted") {
+            const auto cleared = tree.radius_crop(center, radius);
             REQUIRE(cleared == N - live.size());
 
             // Fresh points placed far from the surviving cluster so dedup never fires.

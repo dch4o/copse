@@ -5,7 +5,7 @@
 // query are driven from the panel. Shows the index from a user's view — no
 // internal structure. Run with `dump` for a headless text snapshot.
 
-#include "copse/copse.hpp"
+#include "copse/kd_tree.hpp"
 
 #include <array>
 #include <cstdio>
@@ -147,8 +147,9 @@ void user_callback() {
         ImGui::SliderFloat3("box min", box_min, 0.0f, kExtent);
         ImGui::SliderFloat3("box max", box_max, 0.0f, kExtent);
         if (ImGui::Button("delete box")) {
-            g_tree->delete_box(copse::BBox<3>{Point{box_min[0], box_min[1], box_min[2]},
-                                                   Point{box_max[0], box_max[1], box_max[2]}});
+            g_tree->box_delete({copse::BBox<3>{
+                Point{box_min[0], box_min[1], box_min[2]},
+                Point{box_max[0], box_max[1], box_max[2]}}});
             refresh();
         }
         // Crop radius is its own control: the search radius (single digits) reused
@@ -156,7 +157,7 @@ void user_callback() {
         static float crop_radius = 50.0f;
         ImGui::SliderFloat("crop radius", &crop_radius, 5.0f, kExtent);
         if (ImGui::Button("delete outside crop radius (around query point)")) {
-            g_tree->delete_outside_radius(query.as_point(), crop_radius);
+            g_tree->radius_crop(query.as_point(), crop_radius);
             refresh();
         }
     }

@@ -884,7 +884,7 @@ void check_live_counts(const std::vector<TreeNode>& nodes,
 
 } // namespace
 
-SCENARIO("TreeBuilder<3>::delete_box agrees with the oracle and keeps subtree_live_count consistent",
+SCENARIO("TreeBuilder<3>::box_delete agrees with the oracle and keeps subtree_live_count consistent",
          "[tree_builder][delete][box]") {
     GIVEN("a tree built from 256 uniform random D=3 points") {
         using P = detail::PointType<3>;
@@ -916,7 +916,7 @@ SCENARIO("TreeBuilder<3>::delete_box agrees with the oracle and keeps subtree_li
         }
         const auto root = builder.rebuild(live_indices);
 
-        WHEN("delete_box runs with a sub-box of the extent") {
+        WHEN("box_delete runs with a sub-box of the extent") {
             const P min_corner{-4.0f, -4.0f, -4.0f};
             const P max_corner{4.0f, 4.0f, 4.0f};
 
@@ -928,7 +928,7 @@ SCENARIO("TreeBuilder<3>::delete_box agrees with the oracle and keeps subtree_li
                 }
             }
 
-            const auto cleared = builder.delete_box(root, BBox<3>{min_corner, max_corner});
+            const auto cleared = builder.box_delete(root, BBox<3>{min_corner, max_corner});
 
             THEN("the cleared count matches, no in-box point is live, and counts stay consistent") {
                 REQUIRE(cleared == expected);
@@ -944,7 +944,7 @@ SCENARIO("TreeBuilder<3>::delete_box agrees with the oracle and keeps subtree_li
     }
 }
 
-SCENARIO("TreeBuilder<3>::delete_outside_radius agrees with the oracle and keeps counts consistent",
+SCENARIO("TreeBuilder<3>::radius_crop agrees with the oracle and keeps counts consistent",
          "[tree_builder][delete][radius]") {
     GIVEN("a tree built from 256 uniform random D=3 points") {
         using P = detail::PointType<3>;
@@ -976,7 +976,7 @@ SCENARIO("TreeBuilder<3>::delete_outside_radius agrees with the oracle and keeps
         }
         const auto root = builder.rebuild(live_indices);
 
-        WHEN("delete_outside_radius runs with a sphere inside the extent") {
+        WHEN("radius_crop runs with a sphere inside the extent") {
             const P     center{2.0f, -1.0f, 0.5f};
             const float radius    = 6.0f;
             const float sq_radius = radius * radius;
@@ -988,7 +988,7 @@ SCENARIO("TreeBuilder<3>::delete_outside_radius agrees with the oracle and keeps
                 }
             }
 
-            const auto cleared = builder.delete_outside_radius(root, center, radius);
+            const auto cleared = builder.radius_crop(root, center, radius);
 
             THEN("the cleared count matches, only inside-sphere points stay live, counts consistent") {
                 REQUIRE(cleared == expected);
@@ -1003,7 +1003,7 @@ SCENARIO("TreeBuilder<3>::delete_outside_radius agrees with the oracle and keeps
     }
 }
 
-SCENARIO("TreeBuilder<3>::delete_box on an INVALID root returns 0", "[tree_builder][delete][box][empty]") {
+SCENARIO("TreeBuilder<3>::box_delete on an INVALID root returns 0", "[tree_builder][delete][box][empty]") {
     GIVEN("an empty node pool and an INVALID root") {
         PointStore<3>         points{4};
         LeafBucket            leaf_buckets{8};
@@ -1012,8 +1012,8 @@ SCENARIO("TreeBuilder<3>::delete_box on an INVALID root returns 0", "[tree_build
         BBox<3>               root_bbox{};
         TreeBuilder<3>        builder{nodes, leaf_buckets, leaf_bboxes, root_bbox, points, 4, 0.7f, 0.25f};
 
-        WHEN("delete_box is invoked") {
-            const auto cleared = builder.delete_box(
+        WHEN("box_delete is invoked") {
+            const auto cleared = builder.box_delete(
                 TreeNode::INVALID, BBox<3>{detail::PointType<3>{-1, -1, -1}, detail::PointType<3>{1, 1, 1}});
             THEN("the count is zero") {
                 REQUIRE(cleared == 0);
@@ -1022,7 +1022,7 @@ SCENARIO("TreeBuilder<3>::delete_box on an INVALID root returns 0", "[tree_build
     }
 }
 
-SCENARIO("TreeBuilder<3>::delete_outside_radius on an INVALID root returns 0",
+SCENARIO("TreeBuilder<3>::radius_crop on an INVALID root returns 0",
          "[tree_builder][delete][radius][empty]") {
     GIVEN("an empty node pool and an INVALID root") {
         PointStore<3>         points{4};
@@ -1032,9 +1032,9 @@ SCENARIO("TreeBuilder<3>::delete_outside_radius on an INVALID root returns 0",
         BBox<3>               root_bbox{};
         TreeBuilder<3>        builder{nodes, leaf_buckets, leaf_bboxes, root_bbox, points, 4, 0.7f, 0.25f};
 
-        WHEN("delete_outside_radius is invoked") {
+        WHEN("radius_crop is invoked") {
             const auto cleared =
-                builder.delete_outside_radius(TreeNode::INVALID, detail::PointType<3>{0, 0, 0}, 1.0f);
+                builder.radius_crop(TreeNode::INVALID, detail::PointType<3>{0, 0, 0}, 1.0f);
             THEN("the count is zero") {
                 REQUIRE(cleared == 0);
             }

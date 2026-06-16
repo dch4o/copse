@@ -16,7 +16,7 @@
 // the FetchContent + dual-macro link is proven; the full sweep writes the
 // numbers transcribed into docs/benchmark/vs_ikd_tree.md.
 
-#include "copse/copse.hpp"
+#include "copse/kd_tree.hpp"
 
 #include <sys/resource.h>
 #include <unistd.h>
@@ -231,7 +231,7 @@ float density_radius(std::size_t n) {
     return static_cast<float>(std::cbrt(r_cubed));
 }
 
-std::vector<ikd_facade::Box> make_delete_boxes() {
+std::vector<ikd_facade::Box> make_box_delete() {
     const float                  cell = (kExtent * 0.5f) / static_cast<float>(kDeleteGrid);
     std::vector<ikd_facade::Box> boxes;
     boxes.reserve(static_cast<std::size_t>(kDeleteGrid) * kDeleteGrid * kDeleteGrid);
@@ -248,7 +248,7 @@ std::vector<ikd_facade::Box> make_delete_boxes() {
     return boxes;
 }
 
-std::size_t delete_box_count() {
+std::size_t box_delete_count() {
     return static_cast<std::size_t>(kDeleteGrid) * kDeleteGrid * kDeleteGrid;
 }
 
@@ -401,7 +401,7 @@ Timing bench_radius(Mode mode, std::size_t n) {
 Timing bench_spatial_delete(Mode mode, std::size_t n) {
     const auto cloud     = make_points(n, /*seed=*/0xB1A5E1ULL, kExtent);
     const auto ikd_cloud = is_ikd(mode) ? to_ikd_cloud(cloud) : std::vector<ikd_facade::Point>{};
-    const auto boxes     = make_delete_boxes();
+    const auto boxes     = make_box_delete();
 
     // Pre-build the copse BBox list once; the batched delete runs the whole grid as a
     // single rebuild-triggering call rather than one trigger per box.
@@ -432,9 +432,9 @@ Timing bench_spatial_delete(Mode mode, std::size_t n) {
 
     const auto sweep = [&](State& state) {
         if (is_ikd(mode)) {
-            state.ikd->delete_boxes(boxes);
+            state.ikd->box_delete(boxes);
         } else {
-            state.copse->delete_boxes(std::span<const copse::BBox<3>>{copse_boxes.data(), copse_boxes.size()});
+            state.copse->box_delete(std::span<const copse::BBox<3>>{copse_boxes.data(), copse_boxes.size()});
         }
     };
 
@@ -488,13 +488,13 @@ Timing bench_bulk_delete(Mode mode, std::size_t n) {
         for (std::size_t i = 0; i < kBulkIters; ++i) {
             if (is_ikd(mode)) {
                 state.ikd->add_points(ikd_batches[i]);
-                state.ikd->delete_box(big_box);
+                state.ikd->box_delete(big_box);
             } else {
                 const std::size_t off = i * batch;
                 state.copse->insert(std::span<const Point>{insert_pool.data() + off, batch});
-                state.copse->delete_box(
-                    copse::BBox<3>{Point{big_box.min[0], big_box.min[1], big_box.min[2]},
-                                     Point{big_box.max[0], big_box.max[1], big_box.max[2]}});
+                state.copse->box_delete({copse::BBox<3>{
+                    Point{big_box.min[0], big_box.min[1], big_box.min[2]},
+                    Point{big_box.max[0], big_box.max[1], big_box.max[2]}}});
             }
         }
     };
@@ -511,7 +511,7 @@ Timing bench_mixed(Mode mode, std::size_t n) {
     const auto base_cloud  = make_points(n, /*seed=*/0xB1A5E1ULL, kExtent);
     const auto insert_pool = make_points(kCycleCount * kCycleInsertBatch, /*seed=*/0xC0FFEEULL, kExtent);
     const auto queries     = make_query_pool(/*seed=*/0x9EE71EULL);
-    const auto boxes       = make_delete_boxes();
+    const auto boxes       = make_box_delete();
     const auto ikd_base    = is_ikd(mode) ? to_ikd_cloud(base_cloud) : std::vector<ikd_facade::Point>{};
 
     // Pre-slice the per-frame ikd insert batches (the adapter copies to native anyway).
@@ -568,10 +568,11 @@ Timing bench_mixed(Mode mode, std::size_t n) {
             if (c % kDeleteEvery == 0) {
                 const auto& box = boxes[c % boxes.size()];
                 if (is_ikd(mode)) {
-                    state.ikd->delete_box(box);
+                    state.ikd->box_delete(box);
                 } else {
-                    state.copse->delete_box(copse::BBox<3>{Point{box.min[0], box.min[1], box.min[2]},
-                                                              Point{box.max[0], box.max[1], box.max[2]}});
+                    state.copse->box_delete({copse::BBox<3>{
+                        Point{box.min[0], box.min[1], box.min[2]},
+                        Point{box.max[0], box.max[1], box.max[2]}}});
                 }
             }
         }
@@ -626,7 +627,7 @@ int smoke() {
         const auto knn    = tree->knn_search(query, 4);
         const auto radius = tree->radius_search(query, 1.0f);
         const auto erased =
-            tree->delete_box(copse::BBox<3>{Point{-1.0f, -1.0f, -1.0f}, Point{0.0f, 0.0f, 0.0f}});
+            tree->box_delete({copse::BBox<3>{Point{-1.0f, -1.0f, -1.0f}, Point{0.0f, 0.0f, 0.0f}}});
         std::printf("smoke copse:      size=%zu knn=%zu radius=%zu erased=%zu\n",
                     tree->size(),
                     knn.size(),
@@ -644,7 +645,7 @@ int smoke() {
         const auto knn    = tree->knn(ikd_facade::Point{query.x(), query.y(), query.z()}, 4, sq_dists);
         const auto radius = tree->radius(ikd_facade::Point{query.x(), query.y(), query.z()}, 1.0f, in_radius);
         const ikd_facade::Box box{{-1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}};
-        const auto            erased = tree->delete_box(box);
+        const auto            erased = tree->box_delete(box);
         std::printf("smoke ikd %s: size=%d valid=%d knn=%zu radius=%zu erased=%d\n",
                     mode == Mode::IkdBgOff ? "bg-off" : "bg-on ",
                     tree->size(),
@@ -733,7 +734,7 @@ double per_query(std::size_t) {
     return static_cast<double>(kQueryPool);
 }
 double per_box(std::size_t) {
-    return static_cast<double>(delete_box_count());
+    return static_cast<double>(box_delete_count());
 }
 double per_cycle(std::size_t) {
     return static_cast<double>(kCycleCount);

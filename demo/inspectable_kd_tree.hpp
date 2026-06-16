@@ -76,8 +76,8 @@ public:
     /// @brief Release every live point inside the axis-aligned `box`.
     /// @param box Axis-aligned box to clear.
     /// @return Number of live points cleared.
-    std::size_t delete_box(const copse::BBox<Dim>& box) {
-        const std::size_t cleared = builder_.delete_box(root_, box);
+    std::size_t box_delete(const copse::BBox<Dim>& box) {
+        const std::size_t cleared = builder_.box_delete(root_, box);
         if (cleared > 0) {
             builder_.maybe_partial_rebuild(root_);
         }
@@ -88,8 +88,8 @@ public:
     /// @param center Sphere center.
     /// @param radius Sphere radius.
     /// @return Number of live points cleared.
-    std::size_t delete_outside_radius(const Point& center, float radius) {
-        const std::size_t cleared = builder_.delete_outside_radius(root_, center, radius);
+    std::size_t radius_crop(const Point& center, float radius) {
+        const std::size_t cleared = builder_.radius_crop(root_, center, radius);
         if (cleared > 0) {
             builder_.maybe_partial_rebuild(root_);
         }

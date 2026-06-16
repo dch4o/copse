@@ -57,9 +57,9 @@ public:
         return out.size();
     }
 
-    int delete_box(const Box& box) override { return delete_boxes(std::vector<Box>{box}); }
+    int box_delete(const Box& box) override { return box_delete(std::vector<Box>{box}); }
 
-    int delete_boxes(const std::vector<Box>& boxes) override {
+    int box_delete(const std::vector<Box>& boxes) override {
         std::vector<BoxPointType> bounds;
         bounds.reserve(boxes.size());
         for (const auto& box : boxes) {

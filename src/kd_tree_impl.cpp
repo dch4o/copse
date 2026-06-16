@@ -106,15 +106,10 @@ auto KDTreeImpl<Dim>::hybrid_search(const Point& query, std::size_t k, float rad
 }
 
 template <int Dim>
-std::size_t KDTreeImpl<Dim>::delete_box(const BBox<Dim>& box) {
-    return delete_boxes(std::span<const BBox<Dim>>(&box, 1));
-}
-
-template <int Dim>
-std::size_t KDTreeImpl<Dim>::delete_boxes(std::span<const BBox<Dim>> boxes) {
+std::size_t KDTreeImpl<Dim>::box_delete(std::span<const BBox<Dim>> boxes) {
     std::size_t cleared = 0;
     for (const auto& box : boxes) {
-        cleared += builder_.delete_box(root_, box);
+        cleared += builder_.box_delete(root_, box);
     }
     if (cleared > 0) {
         builder_.maybe_partial_rebuild(root_);
@@ -123,8 +118,8 @@ std::size_t KDTreeImpl<Dim>::delete_boxes(std::span<const BBox<Dim>> boxes) {
 }
 
 template <int Dim>
-std::size_t KDTreeImpl<Dim>::delete_outside_radius(const Point& center, float r) {
-    const std::size_t cleared = builder_.delete_outside_radius(root_, center, r);
+std::size_t KDTreeImpl<Dim>::radius_crop(const Point& center, float r) {
+    const std::size_t cleared = builder_.radius_crop(root_, center, r);
     if (cleared > 0) {
         builder_.maybe_partial_rebuild(root_);
     }

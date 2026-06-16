@@ -2,7 +2,7 @@
 // pre-built tree (knn k=1/8/32, radius, hybrid) and mixed-cycle throughput
 // (1 small insert batch followed by a query burst) at two live-point scales.
 
-#include "copse/copse.hpp"
+#include "copse/kd_tree.hpp"
 
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_test_macros.hpp>

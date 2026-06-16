@@ -44,14 +44,11 @@ public:
     /// @copydoc copse::KDTree::hybrid_search
     std::vector<Neighbor> hybrid_search(const Point& query, std::size_t k, float radius) const;
 
-    /// @copydoc copse::KDTree::delete_box
-    std::size_t delete_box(const BBox<Dim>& box);
+    /// @copydoc copse::KDTree::box_delete(std::span<const BBox<Dim>>)
+    std::size_t box_delete(std::span<const BBox<Dim>> boxes);
 
-    /// @copydoc copse::KDTree::delete_boxes
-    std::size_t delete_boxes(std::span<const BBox<Dim>> boxes);
-
-    /// @copydoc copse::KDTree::delete_outside_radius
-    std::size_t delete_outside_radius(const Point& center, float r);
+    /// @copydoc copse::KDTree::radius_crop
+    std::size_t radius_crop(const Point& center, float r);
 
     /// @copydoc copse::KDTree::size
     std::size_t size() const noexcept;

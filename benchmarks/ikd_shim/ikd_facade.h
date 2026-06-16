@@ -61,12 +61,12 @@ public:
     /// @brief Lazy box delete (ikd `Delete_Point_Boxes`).
     /// @param box Box to clear.
     /// @return Number of points marked deleted.
-    virtual int delete_box(const Box& box) = 0;
+    virtual int box_delete(const Box& box) = 0;
 
     /// @brief Lazy delete of a whole box batch in one `Delete_Point_Boxes` call.
     /// @param boxes Boxes to clear.
     /// @return Number of points marked deleted.
-    virtual int delete_boxes(const std::vector<Box>& boxes) = 0;
+    virtual int box_delete(const std::vector<Box>& boxes) = 0;
 
     /// @brief Total nodes including tombstones (ikd `size`).
     /// @return Node count including tombstones.

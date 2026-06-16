@@ -6,6 +6,7 @@
 #include <Eigen/Core>
 
 #include <cstddef>
+#include <initializer_list>
 #include <memory>
 #include <span>
 #include <vector>
@@ -69,6 +70,11 @@ public:
     /// @return Number of input points actually written (FIFO evictions count; dedup-rejects do not).
     std::size_t insert(std::span<const Point> points);
 
+    /// @brief Insert a braced batch, e.g. `insert({a, b})` or a single `insert({p})`.
+    /// @param points Points to insert.
+    /// @return Number of input points actually written (FIFO evictions count; dedup-rejects do not).
+    std::size_t insert(std::initializer_list<Point> points);
+
     /// @brief Remove every live point within `Config::resolution` of each query.
     /// @param queries Query points whose neighborhoods are cleared.
     /// @return Total number of live points cleared across all queries.
@@ -96,21 +102,21 @@ public:
     /// @throws std::invalid_argument If `k == 0` or `radius < 0`.
     std::vector<Neighbor> hybrid_search(const Point& query, std::size_t k, float radius) const;
 
-    /// @brief Release every live point inside the axis-aligned `box`.
-    /// @param box Axis-aligned box to clear.
-    /// @return Number of live points cleared.
-    std::size_t delete_box(const BBox<Dim>& box);
-
     /// @brief Release every live point inside any of `boxes`, with a single end-of-batch rebuild.
+    /// @param boxes Axis-aligned boxes to clear; pass `{box}` for a single box.
+    /// @return Total number of live points cleared across all boxes (points in overlaps count once).
+    std::size_t box_delete(std::span<const BBox<Dim>> boxes);
+
+    /// @brief Release every live point inside any braced box, e.g. `box_delete({box})`.
     /// @param boxes Axis-aligned boxes to clear.
     /// @return Total number of live points cleared across all boxes (points in overlaps count once).
-    std::size_t delete_boxes(std::span<const BBox<Dim>> boxes);
+    std::size_t box_delete(std::initializer_list<BBox<Dim>> boxes);
 
-    /// @brief Release every live point strictly outside the sphere of radius `r` around `center`.
+    /// @brief Crop to the ball: release every live point strictly outside radius `r` of `center`.
     /// @param center Sphere center.
     /// @param r Sphere radius.
     /// @return Number of live points cleared.
-    std::size_t delete_outside_radius(const Point& center, float r);
+    std::size_t radius_crop(const Point& center, float r);
 
     /// @brief Live point count.
     /// @return Number of live points currently stored.

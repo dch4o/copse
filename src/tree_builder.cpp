@@ -281,7 +281,7 @@ std::size_t release_subtree(std::vector<TreeNode>& nodes,
 }
 
 template <int Dim>
-std::size_t delete_box_leaf(const TreeNode&               node,
+std::size_t box_delete_leaf(const TreeNode&               node,
                                const LeafBucket&             leaf_buckets,
                                PointStore<Dim>&              points,
                                const detail::PointType<Dim>& min_corner,
@@ -317,7 +317,7 @@ bool box_contained(const BBox<Dim>&              partition,
 }
 
 template <int Dim>
-std::size_t delete_box_recurse(std::vector<TreeNode>&        nodes,
+std::size_t box_delete_recurse(std::vector<TreeNode>&        nodes,
                                   const LeafBucket&             leaf_buckets,
                                   const std::vector<BBox<Dim>>& leaf_bboxes,
                                   PointStore<Dim>&              points,
@@ -350,7 +350,7 @@ std::size_t delete_box_recurse(std::vector<TreeNode>&        nodes,
             cleared = release_subtree<Dim>(nodes, leaf_buckets, points, node_idx);
             return cleared;
         }
-        cleared = delete_box_leaf<Dim>(node, leaf_buckets, points, min_corner, max_corner);
+        cleared = box_delete_leaf<Dim>(node, leaf_buckets, points, min_corner, max_corner);
         node.subtree_live_count -= static_cast<std::uint32_t>(cleared);
         return cleared;
     }
@@ -362,12 +362,12 @@ std::size_t delete_box_recurse(std::vector<TreeNode>&        nodes,
 
     BBox<Dim> left_box       = partition;
     left_box.max_corner[dim] = std::min(left_box.max_corner[dim], split);
-    cleared += delete_box_recurse<Dim>(
+    cleared += box_delete_recurse<Dim>(
         nodes, leaf_buckets, leaf_bboxes, points, left, left_box, min_corner, max_corner, modified);
 
     BBox<Dim> right_box       = partition;
     right_box.min_corner[dim] = std::max(right_box.min_corner[dim], split);
-    cleared += delete_box_recurse<Dim>(
+    cleared += box_delete_recurse<Dim>(
         nodes, leaf_buckets, leaf_bboxes, points, right, right_box, min_corner, max_corner, modified);
 
     nodes[node_idx].subtree_live_count -= static_cast<std::uint32_t>(cleared);
@@ -392,7 +392,7 @@ float box_farthest_sq_dist(const BBox<Dim>& partition, const detail::PointType<D
 }
 
 template <int Dim>
-std::size_t delete_outside_radius_leaf(const TreeNode&               node,
+std::size_t radius_crop_leaf(const TreeNode&               node,
                                        const LeafBucket&             leaf_buckets,
                                        PointStore<Dim>&              points,
                                        const detail::PointType<Dim>& center,
@@ -411,7 +411,7 @@ std::size_t delete_outside_radius_leaf(const TreeNode&               node,
 }
 
 template <int Dim>
-std::size_t delete_outside_radius_recurse(std::vector<TreeNode>&        nodes,
+std::size_t radius_crop_recurse(std::vector<TreeNode>&        nodes,
                                           const LeafBucket&             leaf_buckets,
                                           const std::vector<BBox<Dim>>& leaf_bboxes,
                                           PointStore<Dim>&              points,
@@ -443,7 +443,7 @@ std::size_t delete_outside_radius_recurse(std::vector<TreeNode>&        nodes,
         if (box_nearest_sq_dist<Dim>(leaf_bbox, center) > sq_radius) {
             return release_subtree<Dim>(nodes, leaf_buckets, points, node_idx);
         }
-        cleared = delete_outside_radius_leaf<Dim>(node, leaf_buckets, points, center, sq_radius);
+        cleared = radius_crop_leaf<Dim>(node, leaf_buckets, points, center, sq_radius);
         node.subtree_live_count -= static_cast<std::uint32_t>(cleared);
         return cleared;
     }
@@ -455,12 +455,12 @@ std::size_t delete_outside_radius_recurse(std::vector<TreeNode>&        nodes,
 
     BBox<Dim> left_box       = partition;
     left_box.max_corner[dim] = std::min(left_box.max_corner[dim], split);
-    cleared += delete_outside_radius_recurse<Dim>(
+    cleared += radius_crop_recurse<Dim>(
         nodes, leaf_buckets, leaf_bboxes, points, left, left_box, center, sq_radius, modified);
 
     BBox<Dim> right_box       = partition;
     right_box.min_corner[dim] = std::max(right_box.min_corner[dim], split);
-    cleared += delete_outside_radius_recurse<Dim>(
+    cleared += radius_crop_recurse<Dim>(
         nodes, leaf_buckets, leaf_bboxes, points, right, right_box, center, sq_radius, modified);
 
     nodes[node_idx].subtree_live_count -= static_cast<std::uint32_t>(cleared);
@@ -611,11 +611,11 @@ void TreeBuilder<Dim>::tombstone_index(std::uint32_t root, std::uint32_t index) 
 }
 
 template <int Dim>
-std::size_t TreeBuilder<Dim>::delete_box(std::uint32_t root, const BBox<Dim>& box) {
+std::size_t TreeBuilder<Dim>::box_delete(std::uint32_t root, const BBox<Dim>& box) {
     if (root == TreeNode::INVALID) {
         return 0;
     }
-    return delete_box_recurse<Dim>(nodes_,
+    return box_delete_recurse<Dim>(nodes_,
                                       leaf_buckets_,
                                       leaf_bboxes_,
                                       points_,
@@ -627,11 +627,11 @@ std::size_t TreeBuilder<Dim>::delete_box(std::uint32_t root, const BBox<Dim>& bo
 }
 
 template <int Dim>
-std::size_t TreeBuilder<Dim>::delete_outside_radius(std::uint32_t root, const Point& center, float r) {
+std::size_t TreeBuilder<Dim>::radius_crop(std::uint32_t root, const Point& center, float r) {
     if (root == TreeNode::INVALID) {
         return 0;
     }
-    return delete_outside_radius_recurse<Dim>(
+    return radius_crop_recurse<Dim>(
         nodes_, leaf_buckets_, leaf_bboxes_, points_, root, root_bbox_, center, r * r, modified_nodes_);
 }
 
