@@ -1,6 +1,6 @@
 # Rebuild benchmark
 
-> Run date: 2026-06-16 · Source: `benchmarks/bench_rebuild.cpp`
+> Run date: 2026-06-17 · Source: `benchmarks/bench_rebuild.cpp`
 
 Cost of rebuild paths: steady-state batch insert (which folds in any
 partial-rebuild work triggered by α-imbalance / tombstone-fraction /
@@ -39,17 +39,17 @@ single-leaf-overflow path, and a best-effort tombstone-trigger probe.
 
 | N    | partial-rebuild batch insert | `rebuild_all` |     Ratio |
 | ---- | ---------------------------: | ------------: | --------: |
-| 50k  |                     1.132 ms |      11.41 ms |     ~10×  |
-| 100k |                     1.591 ms |      25.08 ms |     ~16×  |
-| 500k |                     4.430 ms |     142.48 ms |     ~32×  |
-| 1M   |                     6.002 ms |     336.45 ms |     ~56×  |
+| 50k  |                     1.164 ms |      11.58 ms |     ~10×  |
+| 100k |                     1.756 ms |      25.35 ms |     ~14×  |
+| 500k |                     4.899 ms |     148.09 ms |     ~30×  |
+| 1M   |                     6.432 ms |     349.48 ms |     ~54×  |
 
 ```mermaid
 xychart-beta
     title "partial rebuild (5k batch) — per-call time (ms)"
     x-axis [50k, 100k, 500k, 1M]
     y-axis "time (ms)" 0 --> 8
-    bar [1.132, 1.591, 4.430, 6.002]
+    bar [1.164, 1.756, 4.899, 6.432]
 ```
 
 ```mermaid
@@ -57,15 +57,15 @@ xychart-beta
     title "rebuild_all — per-call time (ms)"
     x-axis [50k, 100k, 500k, 1M]
     y-axis "time (ms)" 0 --> 360
-    bar [11.41, 25.08, 142.48, 336.45]
+    bar [11.58, 25.35, 148.09, 349.48]
 ```
 
 ### Trigger-specific paths (N = 1M)
 
 | Path                                       | Mean / call |  Stddev |
 | ------------------------------------------ | ----------: | ------: |
-| degenerate cluster insert (1k batch)       |    2.690 ms |  20.4 µs|
-| tombstone-triggered insert (1k batch, ~30% live points removed prior) |    2.414 ms |  79.7 µs|
+| degenerate cluster insert (1k batch)       |    2.713 ms |  14.4 µs|
+| tombstone-triggered insert (1k batch, ~30% live points removed prior) |    2.414 ms |  57.7 µs|
 
 ## What this tells us
 
@@ -76,9 +76,9 @@ single-digit ms, while a `rebuild_all` over the same set scales as
 sweep visits every internal node, but the per-node check is constant
 time; total sweep overhead stays sub-millisecond.
 
-**`rebuild_all` scales close to `O(N log N)`.** 50k → 100k (2×): 11.4
-→ 25.1 ms (~2.2×). 100k → 500k (5×): 25.1 → 142.5 ms (~5.7×), right on
-the analytic 5 × log scaling. 500k → 1M (2×): 142.5 → 336.5 ms
+**`rebuild_all` scales close to `O(N log N)`.** 50k → 100k (2×): 11.6
+→ 25.4 ms (~2.2×). 100k → 500k (5×): 25.4 → 148.1 ms (~5.8×), right on
+the analytic 5 × log scaling. 500k → 1M (2×): 148.1 → 349.5 ms
 (~2.4×), modestly above the 2× analytic as the working set spills past
 L3.
 

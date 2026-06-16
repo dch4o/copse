@@ -1,6 +1,6 @@
 # Remove benchmark
 
-> Run date: 2026-06-16 · Source: `benchmarks/bench_remove.cpp`
+> Run date: 2026-06-17 · Source: `benchmarks/bench_remove.cpp`
 
 Per-call cost of `KDTree3::remove` across query-list sizes at a
 1M live-point tree. Exercises the remove path: per-query
@@ -25,13 +25,13 @@ Per-call cost of `KDTree3::remove` across query-list sizes at a
 
 | Query count | Mean / call |  Stddev | Per-query (mean) |
 | ----------- | ----------: | ------: | ---------------: |
-|       1,000 |    2.248 ms |  49.2 µs|          2.25 µs |
-|      10,000 |    19.07 ms |   558 µs|          1.91 µs |
+|       1,000 |    2.254 ms |  60.1 µs|          2.25 µs |
+|      10,000 |    18.64 ms |   332 µs|          1.86 µs |
 
 ## What this tells us
 
 **Per-query throughput improves as the batch grows.** At 1k queries
-the per-query mean is ~2.25 µs; at 10k queries it falls to ~1.91 µs.
+the per-query mean is ~2.25 µs; at 10k queries it falls to ~1.86 µs.
 The fixed end-of-batch cost (the recursive `maybe_partial_rebuild`
 sweep + any subtree rebuilds the sweep fires) amortizes across more
 matches in the larger batch.
