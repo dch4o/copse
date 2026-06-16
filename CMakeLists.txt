@@ -49,5 +49,6 @@ if(TOPIARY_BUILD_TESTS)
 endif()
 
 if(TOPIARY_BUILD_BENCHMARKS)
+    include(IkdTree)
     add_subdirectory(benchmarks)
 endif()

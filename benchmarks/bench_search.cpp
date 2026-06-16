@@ -17,13 +17,13 @@ namespace topiary {
 
 namespace {
 
-constexpr std::uint64_t kSeed         = 0x5EA2C400'BEEFULL;
-constexpr std::uint64_t kQuerySeed    = 0xC0FFEE00'9527ULL;
-constexpr float         kResolution   = 1e-6f;
-constexpr float         kCoordExtent  = 100.0f; // spread queries out so density isn't artificially high.
-constexpr std::size_t   kPrefill      = 100'000;
-constexpr std::size_t   kQueryPool    = 256;
-constexpr float         kRadius       = 5.0f; // ~10–50 hits on uniform 100k points in [0,100)^3.
+constexpr std::uint64_t kSeed        = 0x5EA2C400'BEEFULL;
+constexpr std::uint64_t kQuerySeed   = 0xC0FFEE00'9527ULL;
+constexpr float         kResolution  = 1e-6f;
+constexpr float         kCoordExtent = 100.0f; // spread queries out so density isn't artificially high.
+constexpr std::size_t   kPrefill     = 100'000;
+constexpr std::size_t   kQueryPool   = 256;
+constexpr float         kRadius      = 5.0f; // ~10–50 hits on uniform 100k points in [0,100)^3.
 
 using Tree  = KDTree3;
 using Point = Tree::Point;
@@ -136,7 +136,7 @@ TEST_CASE("Bench: search throughput in mixed insert/query cycle", "[!benchmark][
     // queries (k=8). Cycle cost is dominated by the query burst; the insert
     // contribution is small. Reported time is the whole cycle.
 
-    constexpr std::uint64_t kMixedSeed  = 0x14820000'A1B5CULL;
+    constexpr std::uint64_t kMixedSeed      = 0x14820000'A1B5CULL;
     constexpr std::uint64_t kMixedQuerySeed = 0xDEADBEEF'CAFEULL;
     constexpr std::size_t   kInsertBatch    = 1'000;
     constexpr std::size_t   kSearchCount    = 10'000;

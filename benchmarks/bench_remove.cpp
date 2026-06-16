@@ -41,9 +41,7 @@ Tree::Config make_config(std::size_t capacity) {
     return cfg;
 }
 
-std::vector<Point> sample_queries(const std::vector<Point>& fill,
-                                  std::size_t                count,
-                                  std::uint64_t              seed) {
+std::vector<Point> sample_queries(const std::vector<Point>& fill, std::size_t count, std::uint64_t seed) {
     std::mt19937_64                            rng{seed};
     std::uniform_int_distribution<std::size_t> pick{0, fill.size() - 1};
     std::vector<Point>                         queries;
@@ -60,8 +58,8 @@ TEST_CASE("Bench: remove query-count sweep, 1M points", "[!benchmark][remove][sw
     // Pre-fill 1M, then run remove() against query lists of varying size. Every
     // query is a coordinate drawn from the prefill, so each match is guaranteed.
 
-    constexpr std::uint64_t kSeed      = 0xD5E2C400'BEEFULL;
-    constexpr std::size_t   kCapacity  = 1'000'000;
+    constexpr std::uint64_t kSeed     = 0xD5E2C400'BEEFULL;
+    constexpr std::size_t   kCapacity = 1'000'000;
 
     BENCHMARK_ADVANCED("remove 1k queries (3, N=1M)")
     (Catch::Benchmark::Chronometer meter) {
