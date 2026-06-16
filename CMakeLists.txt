@@ -12,9 +12,11 @@ set(CMAKE_CXX_EXTENSIONS        OFF)
 option(COPSE_BUILD_TESTS      "Build copse test suite" ON)
 option(COPSE_BUILD_BENCHMARKS "Build copse benchmarks" ON)
 option(COPSE_BUILD_DEMOS      "Build copse demos (pulls Polyscope; needs GL/X11)" OFF)
+option(COPSE_INSTALL          "Generate install and package-config rules"         ON)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 include(ClangTidy)
+include(GNUInstallDirs)
 
 # --- Dependencies ---
 
@@ -46,7 +48,11 @@ add_library(copse::copse ALIAS copse)
 target_include_directories(copse
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
+
+# Propagate the C++20 requirement to consumers (set(CMAKE_CXX_STANDARD) does not).
+target_compile_features(copse PUBLIC cxx_std_20)
 
 # A generator expression is one ;-list: quote it and separate flags with ; so
 # each reaches the compiler as its own argument (a space-joined string would be
@@ -71,4 +77,45 @@ endif()
 
 if(COPSE_BUILD_DEMOS)
     add_subdirectory(demo)
+endif()
+
+# --- Install / package config ---
+#
+# Lets downstreams consume copse identically via find_package(copse), or via
+# add_subdirectory()/FetchContent (the copse::copse ALIAS works in-tree). copse
+# has no public dependencies, so the generated config just pulls in the targets.
+
+if(COPSE_INSTALL)
+    include(CMakePackageConfigHelpers)
+
+    install(TARGETS copse
+        EXPORT  copseTargets
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    )
+    install(DIRECTORY include/copse DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+    set(COPSE_CMAKE_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/copse)
+    install(EXPORT copseTargets
+        NAMESPACE   copse::
+        FILE        copseTargets.cmake
+        DESTINATION ${COPSE_CMAKE_DIR}
+    )
+
+    configure_package_config_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/cmake/copseConfig.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/copseConfig.cmake
+        INSTALL_DESTINATION ${COPSE_CMAKE_DIR}
+    )
+    write_basic_package_version_file(
+        ${CMAKE_CURRENT_BINARY_DIR}/copseConfigVersion.cmake
+        VERSION       ${PROJECT_VERSION}
+        COMPATIBILITY SameMajorVersion
+    )
+    install(FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/copseConfig.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/copseConfigVersion.cmake
+        DESTINATION ${COPSE_CMAKE_DIR}
+    )
 endif()
