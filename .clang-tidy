@@ -29,7 +29,7 @@ Checks: >
 
 WarningsAsErrors: ''
 
-# Restrict diagnostics to first-party headers/sources; do not lint Eigen / Catch2.
+# Restrict diagnostics to first-party headers/sources; do not lint Catch2.
 HeaderFilterRegex: '.*/(include/copse|src)/.*\.(hpp|h)$'
 
 FormatStyle: file

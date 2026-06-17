@@ -85,19 +85,6 @@ RUN git clone --branch v${CCACHE_VERSION} https://github.com/ccache/ccache.git /
     && make install -j$(nproc --ignore=1) \
     && rm -rf /opt/ccache/build /opt/ccache/.git
 
-# Install Eigen3
-ARG EIGEN_VERSION=5.0.1
-RUN git clone --branch ${EIGEN_VERSION} https://gitlab.com/libeigen/eigen.git /opt/eigen \
-    && mkdir -p /opt/eigen/build && cd /opt/eigen/build \
-    && cmake \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DEIGEN_BUILD_TESTING=OFF \
-    -DEIGEN_BUILD_DOC=OFF \
-    -DEIGEN_BUILD_DEMOS=OFF \
-    .. \
-    && make install -j$(nproc --ignore=1) \
-    && rm -rf /opt/eigen/build /opt/eigen/.git
-
 # Create a non-root user to use if preferred
 ARG USERNAME=dev
 ARG USER_UID=1000

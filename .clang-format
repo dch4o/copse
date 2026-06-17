@@ -27,14 +27,12 @@ IncludeBlocks: Regroup
 IncludeCategories:
   - Regex:    '^"copse/'
     Priority: 1
-  - Regex:    '^<Eigen/'
-    Priority: 2
   - Regex:    '^<catch2/'
-    Priority: 3
+    Priority: 2
   - Regex:    '^<.*\.h>'
-    Priority: 4
+    Priority: 3
   - Regex:    '^<.*>'
-    Priority: 5
+    Priority: 4
 NamespaceIndentation: None
 PointerAlignment: Left
 ReflowComments: true
