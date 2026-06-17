@@ -23,7 +23,10 @@ class KDTreeImpl;
 } // namespace internal
 
 /// @brief Fixed-capacity, mutable kd-tree of float points with FIFO eviction and resolution-based dedup.
-/// Single-writer; the caller is responsible for serializing access.
+/// Not internally synchronized: the caller serializes all access to an instance — a mutating call
+/// (insert/remove/box_delete/radius_crop/rebuild_all) must not overlap any other call on the same tree.
+/// Distinct instances share no state. Move operations and size()/capacity() are noexcept; other calls may
+/// throw (the constructor on a bad Config, any call on allocation failure).
 /// @tparam Dim Point dimensionality.
 template <int Dim>
     requires detail::SupportedDim<Dim>
