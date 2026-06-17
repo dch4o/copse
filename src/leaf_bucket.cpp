@@ -1,6 +1,10 @@
-#include "topiary/impl/leaf_bucket.hpp"
+// SPDX-FileCopyrightText: 2026 Dohoon Cho
+// SPDX-License-Identifier: MIT
+#include "copse/impl/leaf_bucket.hpp"
 
-namespace topiary::internal {
+namespace copse::internal {
+
+static_assert(sizeof(BucketEntry) == 8, "BucketEntry must stay 8 B for bucket footprint accounting");
 
 LeafBucket::LeafBucket(std::size_t initial_entries) {
     data_.reserve(initial_entries);
@@ -21,7 +25,8 @@ std::span<BucketEntry> LeafBucket::view(std::uint32_t offset, std::uint16_t size
 }
 
 bool LeafBucket::push(std::uint32_t offset, std::uint16_t& size, std::uint16_t capacity, BucketEntry entry) {
-    if (size == capacity) return false;
+    if (size == capacity)
+        return false;
     data_[offset + size] = entry;
     ++size;
     return true;
@@ -31,4 +36,4 @@ void LeafBucket::clear() noexcept {
     data_.clear();
 }
 
-} // namespace topiary::internal
+} // namespace copse::internal

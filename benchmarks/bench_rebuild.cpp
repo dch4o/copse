@@ -1,8 +1,10 @@
+// SPDX-FileCopyrightText: 2026 Dohoon Cho
+// SPDX-License-Identifier: MIT
 // Microbenchmark: rebuild tail latency at N=1M. Pairs partial-rebuild
 // steady-state cost (insert that may trigger a scapegoat rebuild) against
 // the explicit full rebuild_all() reference.
 
-#include "topiary/topiary.hpp"
+#include "copse/kd_tree.hpp"
 
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -12,7 +14,7 @@
 #include <random>
 #include <vector>
 
-namespace topiary {
+namespace copse {
 
 namespace {
 
@@ -31,7 +33,7 @@ std::vector<Point> make_points(std::size_t count, std::uint64_t seed, float exte
     std::vector<Point>                    out;
     out.reserve(count);
     for (std::size_t i = 0; i < count; ++i) {
-        out.emplace_back(dist(rng), dist(rng), dist(rng));
+        out.push_back(Point{dist(rng), dist(rng), dist(rng)});
     }
     return out;
 }
@@ -167,14 +169,13 @@ TEST_CASE("Bench: degenerate cluster insert (LeafBucket overflow path), 1M point
     (Catch::Benchmark::Chronometer meter) {
         const auto fill = make_points(kCapacity, kSeed ^ 0x41u, kCoordExtent);
 
-        std::vector<Point>                    batch;
+        std::vector<Tree::Point> batch;
         batch.reserve(kDegenerateBatch);
         std::mt19937_64                       rng{kSeed ^ 0x42u};
         std::uniform_real_distribution<float> jitter{-kClusterJitterMax, kClusterJitterMax};
         for (std::size_t i = 0; i < kDegenerateBatch; ++i) {
-            batch.emplace_back(kClusterCenter + jitter(rng),
-                               kClusterCenter + jitter(rng),
-                               kClusterCenter + jitter(rng));
+            batch.push_back(Tree::Point{
+                kClusterCenter + jitter(rng), kClusterCenter + jitter(rng), kClusterCenter + jitter(rng)});
         }
 
         Tree tree{make_config(kCapacity)};
@@ -183,16 +184,15 @@ TEST_CASE("Bench: degenerate cluster insert (LeafBucket overflow path), 1M point
     };
 }
 
-TEST_CASE("Bench: tombstone-triggered partial rebuild, 1M points",
-          "[!benchmark][rebuild][tombstone]") {
+TEST_CASE("Bench: tombstone-triggered partial rebuild, 1M points", "[!benchmark][rebuild][tombstone]") {
     // Best-effort tombstone-fraction trigger. Pre-fill 1M, remove ~30% of the
     // inserted points (uniformly drawn from the fill), then measure a small
     // batch insert. The expectation is that at least one subtree crosses
     // Config::tombstone_threshold = 0.25 and the next insert fires a partial
     // rebuild. Single row; flagged as best-effort in the label.
 
-    constexpr std::size_t kRemoveFraction    = 300'000; // ~30% of 1M
-    constexpr std::size_t kSmallBatch        = 1'000;
+    constexpr std::size_t kRemoveFraction = 300'000; // ~30% of 1M
+    constexpr std::size_t kSmallBatch     = 1'000;
 
     BENCHMARK_ADVANCED("tombstone-triggered partial rebuild (3, N=1M, best-effort)")
     (Catch::Benchmark::Chronometer meter) {
@@ -201,9 +201,9 @@ TEST_CASE("Bench: tombstone-triggered partial rebuild, 1M points",
 
         // Sample remove-targets directly from the prefill so every query matches
         // a live point. Fixed seed keeps the sample reproducible per iteration.
-        std::vector<Point>           remove_queries;
+        std::vector<Tree::Point> remove_queries;
         remove_queries.reserve(kRemoveFraction);
-        std::mt19937_64              rng{kSeed ^ 0x53u};
+        std::mt19937_64                            rng{kSeed ^ 0x53u};
         std::uniform_int_distribution<std::size_t> pick{0, fill.size() - 1};
         for (std::size_t i = 0; i < kRemoveFraction; ++i) {
             remove_queries.emplace_back(fill[pick(rng)]);
@@ -216,4 +216,4 @@ TEST_CASE("Bench: tombstone-triggered partial rebuild, 1M points",
     };
 }
 
-} // namespace topiary
+} // namespace copse

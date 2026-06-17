@@ -1,10 +1,18 @@
-#include "topiary/impl/point_store.hpp"
+// SPDX-FileCopyrightText: 2026 Dohoon Cho
+// SPDX-License-Identifier: MIT
+#include "copse/impl/point_store.hpp"
 
+#include <cstdint>
 #include <numeric>
 #include <stdexcept>
 #include <utility>
 
-namespace topiary::internal {
+namespace copse::internal {
+
+namespace {
+/// Sentinel marking an unused `buf_pos_` slot.
+constexpr std::uint32_t INVALID_POS = ~std::uint32_t{0};
+} // namespace
 
 template <int Dim>
 PointStore<Dim>::PointStore(std::size_t capacity)
@@ -50,17 +58,17 @@ std::uint32_t PointStore<Dim>::acquire(const Point& point) {
     if (live_ == capacity_) {
         const std::uint32_t victim = buffer_[buf_head_];
         ++generations_[victim];
-        live_bits_[victim]         = 0;
-        buf_pos_[victim]           = INVALID_POS;
-        buf_head_                  = (buf_head_ + 1) % capacity_;
+        live_bits_[victim] = 0;
+        buf_pos_[victim]   = INVALID_POS;
+        buf_head_          = (buf_head_ + 1) % capacity_;
         --live_;
     }
     const std::uint32_t index = buffer_[buf_tail_];
     ++generations_[index];
-    points_[index]            = point;
-    live_bits_[index]         = 1;
-    buf_pos_[index]           = buf_tail_;
-    buf_tail_                 = (buf_tail_ + 1) % capacity_;
+    points_[index]    = point;
+    live_bits_[index] = 1;
+    buf_pos_[index]   = buf_tail_;
+    buf_tail_         = (buf_tail_ + 1) % capacity_;
     ++live_;
     return index;
 }
@@ -98,4 +106,4 @@ template class PointStore<2>;
 template class PointStore<3>;
 template class PointStore<4>;
 
-} // namespace topiary::internal
+} // namespace copse::internal

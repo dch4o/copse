@@ -1,8 +1,10 @@
+// SPDX-FileCopyrightText: 2026 Dohoon Cho
+// SPDX-License-Identifier: MIT
 // Microbenchmark: insert per-call cost across capacities, batch sizes, and
 // FIFO-eviction regime. TEST_CASEs slice the matrix differently — batch-size
 // sweep, full-tree warm path, capacity sweep × cold/warm regime.
 
-#include "topiary/topiary.hpp"
+#include "copse/kd_tree.hpp"
 
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -12,7 +14,7 @@
 #include <random>
 #include <vector>
 
-namespace topiary {
+namespace copse {
 
 namespace {
 
@@ -27,7 +29,7 @@ std::vector<Point> make_points(std::size_t count, std::uint64_t seed) {
     std::vector<Point>                    out;
     out.reserve(count);
     for (std::size_t i = 0; i < count; ++i) {
-        out.emplace_back(dist(rng), dist(rng), dist(rng));
+        out.push_back(Point{dist(rng), dist(rng), dist(rng)});
     }
     return out;
 }
@@ -183,4 +185,4 @@ TEST_CASE("Bench: cold vs warm insert across capacity (D=3, batch=10k)", "[!benc
     };
 }
 
-} // namespace topiary
+} // namespace copse

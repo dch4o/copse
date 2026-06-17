@@ -1,0 +1,7 @@
+@PACKAGE_INIT@
+
+# copse has no public dependencies (Eigen was removed from the public API), so
+# there is nothing to find_dependency() here — just pull in the exported targets.
+include("${CMAKE_CURRENT_LIST_DIR}/copseTargets.cmake")
+
+check_required_components(copse)

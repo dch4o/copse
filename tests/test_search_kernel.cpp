@@ -1,10 +1,12 @@
+// SPDX-FileCopyrightText: 2026 Dohoon Cho
+// SPDX-License-Identifier: MIT
 // BDD tests for SearchKernel<Dim>: brute-force agreement on random inputs across D ∈ {2, 3, 4}.
 
-#include "topiary/impl/leaf_bucket.hpp"
-#include "topiary/impl/point_store.hpp"
-#include "topiary/impl/search_kernel.hpp"
-#include "topiary/impl/tree_builder.hpp"
-#include "topiary/impl/tree_node.hpp"
+#include "copse/impl/leaf_bucket.hpp"
+#include "copse/impl/point_store.hpp"
+#include "copse/impl/search_kernel.hpp"
+#include "copse/impl/tree_builder.hpp"
+#include "copse/impl/tree_node.hpp"
 
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -15,17 +17,17 @@
 #include <utility>
 #include <vector>
 
-namespace topiary::internal {
+namespace copse::internal {
 
 namespace {
 
 template <int Dim>
 std::vector<std::pair<std::uint32_t, float>> brute_force_knn(
-    const std::vector<detail::PointType<Dim>>& points, const detail::PointType<Dim>& query, std::size_t k) {
+    const std::vector<copse::Point<Dim>>& points, const copse::Point<Dim>& query, std::size_t k) {
     std::vector<std::pair<std::uint32_t, float>> pairs;
     pairs.reserve(points.size());
     for (std::uint32_t i = 0; i < points.size(); ++i) {
-        pairs.emplace_back(i, (points[i] - query).squaredNorm());
+        pairs.emplace_back(i, points[i].sq_dist(query));
     }
     std::sort(
         pairs.begin(), pairs.end(), [](const auto& lhs, const auto& rhs) { return lhs.second < rhs.second; });
@@ -36,12 +38,12 @@ std::vector<std::pair<std::uint32_t, float>> brute_force_knn(
 }
 
 template <int Dim>
-std::vector<float> brute_force_radius(const std::vector<detail::PointType<Dim>>& points,
-                                      const detail::PointType<Dim>&              query,
+std::vector<float> brute_force_radius(const std::vector<copse::Point<Dim>>& points,
+                                      const copse::Point<Dim>&              query,
                                       float                                      sq_radius) {
     std::vector<float> matches;
     for (const auto& point : points) {
-        const float sq_dist = (point - query).squaredNorm();
+        const float sq_dist = point.sq_dist(query);
         if (sq_dist < sq_radius) {
             matches.push_back(sq_dist);
         }
@@ -55,13 +57,13 @@ std::vector<float> brute_force_radius(const std::vector<detail::PointType<Dim>>&
 SCENARIO("SearchKernel returns empty when the root is INVALID", "[search_kernel][empty]") {
     GIVEN("an empty node pool and an INVALID root") {
         PointStore<3>         points{4};
-        LeafBucket            buckets{8};
+        LeafBucket            leaf_buckets{8};
         std::vector<TreeNode> nodes;
-        SearchKernel<3>       kernel{nodes, buckets, points};
+        SearchKernel<3>       kernel{nodes, leaf_buckets, points};
 
         WHEN("search is invoked") {
             const auto result = kernel.search(
-                TreeNode::INVALID, detail::PointType<3>{0, 0, 0}, 5, std::numeric_limits<float>::infinity());
+                TreeNode::INVALID, copse::Point<3>{0, 0, 0}, 5, std::numeric_limits<float>::infinity());
             THEN("the result is empty") {
                 REQUIRE(result.empty());
             }
@@ -79,20 +81,20 @@ TEMPLATE_TEST_CASE_SIG("SearchKernel agrees with the brute-force oracle for vary
                        (3, 10),
                        (4, 10)) {
     GIVEN("a tree built from 256 uniform random points in D-space") {
-        using P = detail::PointType<Dim>;
+        using P = copse::Point<Dim>;
 
         constexpr std::size_t N = 256;
 
         std::mt19937 rng{0xC0FFEEu + static_cast<unsigned>(Dim) * 17u + static_cast<unsigned>(K)};
         std::uniform_real_distribution<float> coord{-10.0f, 10.0f};
 
-        PointStore<Dim>       points{N};
-        LeafBucket            buckets{N * 2};
-        std::vector<TreeNode> nodes;
+        PointStore<Dim>        points{N};
+        LeafBucket             leaf_buckets{N * 2};
+        std::vector<TreeNode>  nodes;
         std::vector<BBox<Dim>> leaf_bboxes;
-        BBox<Dim>             root_bbox{};
-        TreeBuilder<Dim>      builder{nodes,
-                                 buckets,
+        BBox<Dim>              root_bbox{};
+        TreeBuilder<Dim>       builder{nodes,
+                                 leaf_buckets,
                                  leaf_bboxes,
                                  root_bbox,
                                  points,
@@ -114,7 +116,7 @@ TEMPLATE_TEST_CASE_SIG("SearchKernel agrees with the brute-force oracle for vary
         }
         const auto root = builder.rebuild(live_indices);
 
-        SearchKernel<Dim> kernel{nodes, buckets, points};
+        SearchKernel<Dim> kernel{nodes, leaf_buckets, points};
 
         WHEN("knn search runs against 16 random queries with k=K") {
             THEN("each result matches the brute-force oracle and is ascending") {
@@ -145,19 +147,20 @@ TEMPLATE_TEST_CASE_SIG("SearchKernel radius variant agrees with the brute-force 
                        (3),
                        (4)) {
     GIVEN("a tree built from 256 uniform random points in D-space") {
-        using P = detail::PointType<Dim>;
+        using P = copse::Point<Dim>;
 
         constexpr std::size_t N = 256;
 
         std::mt19937                          rng{0xBADF00Du + static_cast<unsigned>(Dim) * 31u};
         std::uniform_real_distribution<float> coord{-10.0f, 10.0f};
 
-        PointStore<Dim>       points{N};
-        LeafBucket            buckets{N * 2};
-        std::vector<TreeNode> nodes;
+        PointStore<Dim>        points{N};
+        LeafBucket             leaf_buckets{N * 2};
+        std::vector<TreeNode>  nodes;
         std::vector<BBox<Dim>> leaf_bboxes;
-        BBox<Dim>             root_bbox{};
-        TreeBuilder<Dim>      builder{nodes, buckets, leaf_bboxes, root_bbox, points, /*leaf_bucket_size=*/16, 0.7f, 0.25f};
+        BBox<Dim>              root_bbox{};
+        TreeBuilder<Dim>       builder{
+            nodes, leaf_buckets, leaf_bboxes, root_bbox, points, /*leaf_bucket_size=*/16, 0.7f, 0.25f};
 
         std::vector<P>             coords;
         std::vector<std::uint32_t> live_indices;
@@ -173,7 +176,7 @@ TEMPLATE_TEST_CASE_SIG("SearchKernel radius variant agrees with the brute-force 
         }
         const auto root = builder.rebuild(live_indices);
 
-        SearchKernel<Dim> kernel{nodes, buckets, points};
+        SearchKernel<Dim> kernel{nodes, leaf_buckets, points};
 
         WHEN("radius search runs against 16 random queries across several radii") {
             THEN("each result matches the brute-force oracle and is ascending") {
@@ -202,11 +205,9 @@ TEMPLATE_TEST_CASE_SIG("SearchKernel radius variant agrees with the brute-force 
     }
 }
 
-/// Seed + (N, K, R) chosen so the 32 trials produce both k-bound and r-bound
-/// outcomes; bump trial count or radius if a future change drops one regime.
 SCENARIO("SearchKernel hybrid variant respects both k and radius bounds", "[search_kernel][hybrid][oracle]") {
     GIVEN("a D=3 tree built from 512 uniform random points") {
-        using P = detail::PointType<3>;
+        using P = copse::Point<3>;
 
         constexpr std::size_t N = 512;
 
@@ -214,11 +215,12 @@ SCENARIO("SearchKernel hybrid variant respects both k and radius bounds", "[sear
         std::uniform_real_distribution<float> coord{-10.0f, 10.0f};
 
         PointStore<3>         points{N};
-        LeafBucket            buckets{N * 2};
+        LeafBucket            leaf_buckets{N * 2};
         std::vector<TreeNode> nodes;
         std::vector<BBox<3>>  leaf_bboxes;
         BBox<3>               root_bbox{};
-        TreeBuilder<3>        builder{nodes, buckets, leaf_bboxes, root_bbox, points, /*leaf_bucket_size=*/16, 0.7f, 0.25f};
+        TreeBuilder<3>        builder{
+            nodes, leaf_buckets, leaf_bboxes, root_bbox, points, /*leaf_bucket_size=*/16, 0.7f, 0.25f};
 
         std::vector<P>             coords;
         std::vector<std::uint32_t> live_indices;
@@ -234,7 +236,7 @@ SCENARIO("SearchKernel hybrid variant respects both k and radius bounds", "[sear
         }
         const auto root = builder.rebuild(live_indices);
 
-        SearchKernel<3> kernel{nodes, buckets, points};
+        SearchKernel<3> kernel{nodes, leaf_buckets, points};
 
         WHEN("hybrid search runs with k=10 and r=4 across 32 queries") {
             constexpr std::size_t K         = 10;
@@ -265,6 +267,7 @@ SCENARIO("SearchKernel hybrid variant respects both k and radius bounds", "[sear
                         REQUIRE(result[i].sq_dist == expected[i]);
                     }
                 }
+                // Both regimes must occur; bump trial count or radius if a future change drops one.
                 REQUIRE(k_limited > 0);
                 REQUIRE(r_limited > 0);
             }
@@ -274,7 +277,7 @@ SCENARIO("SearchKernel hybrid variant respects both k and radius bounds", "[sear
 
 SCENARIO("SearchKernel radius=0 returns empty (strict-inside semantics)", "[search_kernel][radius][edge]") {
     GIVEN("a small tree built from 64 uniform random D=3 points") {
-        using P = detail::PointType<3>;
+        using P = copse::Point<3>;
 
         constexpr std::size_t N = 64;
 
@@ -282,11 +285,12 @@ SCENARIO("SearchKernel radius=0 returns empty (strict-inside semantics)", "[sear
         std::uniform_real_distribution<float> coord{-10.0f, 10.0f};
 
         PointStore<3>         points{N};
-        LeafBucket            buckets{N * 2};
+        LeafBucket            leaf_buckets{N * 2};
         std::vector<TreeNode> nodes;
         std::vector<BBox<3>>  leaf_bboxes;
         BBox<3>               root_bbox{};
-        TreeBuilder<3>        builder{nodes, buckets, leaf_bboxes, root_bbox, points, /*leaf_bucket_size=*/16, 0.7f, 0.25f};
+        TreeBuilder<3>        builder{
+            nodes, leaf_buckets, leaf_bboxes, root_bbox, points, /*leaf_bucket_size=*/16, 0.7f, 0.25f};
 
         std::vector<P>             coords;
         std::vector<std::uint32_t> live_indices;
@@ -302,7 +306,7 @@ SCENARIO("SearchKernel radius=0 returns empty (strict-inside semantics)", "[sear
         }
         const auto root = builder.rebuild(live_indices);
 
-        SearchKernel<3> kernel{nodes, buckets, points};
+        SearchKernel<3> kernel{nodes, leaf_buckets, points};
 
         WHEN("search runs with k_max=SIZE_MAX, initial_radius_sq=0 and q equal to a stored point") {
             const auto result =
@@ -316,7 +320,7 @@ SCENARIO("SearchKernel radius=0 returns empty (strict-inside semantics)", "[sear
 
 SCENARIO("SearchKernel with very large radius covers all live points", "[search_kernel][radius]") {
     GIVEN("a small tree built from 64 uniform random D=3 points") {
-        using P = detail::PointType<3>;
+        using P = copse::Point<3>;
 
         constexpr std::size_t N = 64;
 
@@ -324,11 +328,12 @@ SCENARIO("SearchKernel with very large radius covers all live points", "[search_
         std::uniform_real_distribution<float> coord{-10.0f, 10.0f};
 
         PointStore<3>         points{N};
-        LeafBucket            buckets{N * 2};
+        LeafBucket            leaf_buckets{N * 2};
         std::vector<TreeNode> nodes;
         std::vector<BBox<3>>  leaf_bboxes;
         BBox<3>               root_bbox{};
-        TreeBuilder<3>        builder{nodes, buckets, leaf_bboxes, root_bbox, points, /*leaf_bucket_size=*/16, 0.7f, 0.25f};
+        TreeBuilder<3>        builder{
+            nodes, leaf_buckets, leaf_bboxes, root_bbox, points, /*leaf_bucket_size=*/16, 0.7f, 0.25f};
 
         std::vector<P>             coords;
         std::vector<std::uint32_t> live_indices;
@@ -344,7 +349,7 @@ SCENARIO("SearchKernel with very large radius covers all live points", "[search_
         }
         const auto root = builder.rebuild(live_indices);
 
-        SearchKernel<3> kernel{nodes, buckets, points};
+        SearchKernel<3> kernel{nodes, leaf_buckets, points};
 
         WHEN("search runs with k_max=SIZE_MAX and a huge radius") {
             const P     query{coord(rng), coord(rng), coord(rng)};
@@ -368,7 +373,7 @@ SCENARIO("SearchKernel with very large radius covers all live points", "[search_
 
 SCENARIO("SearchKernel hybrid with k > N falls into the radius-bound regime", "[search_kernel][hybrid]") {
     GIVEN("a D=3 tree built from 64 uniform random points") {
-        using P = detail::PointType<3>;
+        using P = copse::Point<3>;
 
         constexpr std::size_t N = 64;
 
@@ -376,11 +381,12 @@ SCENARIO("SearchKernel hybrid with k > N falls into the radius-bound regime", "[
         std::uniform_real_distribution<float> coord{-10.0f, 10.0f};
 
         PointStore<3>         points{N};
-        LeafBucket            buckets{N * 2};
+        LeafBucket            leaf_buckets{N * 2};
         std::vector<TreeNode> nodes;
         std::vector<BBox<3>>  leaf_bboxes;
         BBox<3>               root_bbox{};
-        TreeBuilder<3>        builder{nodes, buckets, leaf_bboxes, root_bbox, points, /*leaf_bucket_size=*/16, 0.7f, 0.25f};
+        TreeBuilder<3>        builder{
+            nodes, leaf_buckets, leaf_bboxes, root_bbox, points, /*leaf_bucket_size=*/16, 0.7f, 0.25f};
 
         std::vector<P>             coords;
         std::vector<std::uint32_t> live_indices;
@@ -396,7 +402,7 @@ SCENARIO("SearchKernel hybrid with k > N falls into the radius-bound regime", "[
         }
         const auto root = builder.rebuild(live_indices);
 
-        SearchKernel<3> kernel{nodes, buckets, points};
+        SearchKernel<3> kernel{nodes, leaf_buckets, points};
 
         WHEN("hybrid search runs with k=1000 and a moderate radius") {
             const P     query{0.0f, 0.0f, 0.0f};
@@ -418,7 +424,7 @@ SCENARIO("SearchKernel hybrid with k > N falls into the radius-bound regime", "[
 SCENARIO("SearchKernel::collect_indices_within returns every live in-radius index",
          "[search_kernel][collect]") {
     GIVEN("a small D=3 tree built from 64 uniform random points") {
-        using P = detail::PointType<3>;
+        using P = copse::Point<3>;
 
         constexpr std::size_t N = 64;
 
@@ -426,11 +432,12 @@ SCENARIO("SearchKernel::collect_indices_within returns every live in-radius inde
         std::uniform_real_distribution<float> coord{-10.0f, 10.0f};
 
         PointStore<3>         points{N};
-        LeafBucket            buckets{N * 2};
+        LeafBucket            leaf_buckets{N * 2};
         std::vector<TreeNode> nodes;
         std::vector<BBox<3>>  leaf_bboxes;
         BBox<3>               root_bbox{};
-        TreeBuilder<3>        builder{nodes, buckets, leaf_bboxes, root_bbox, points, /*leaf_bucket_size=*/8, 0.7f, 0.25f};
+        TreeBuilder<3>        builder{
+            nodes, leaf_buckets, leaf_bboxes, root_bbox, points, /*leaf_bucket_size=*/8, 0.7f, 0.25f};
 
         std::vector<P>             coords;
         std::vector<std::uint32_t> live_indices;
@@ -446,7 +453,7 @@ SCENARIO("SearchKernel::collect_indices_within returns every live in-radius inde
         }
         const auto root = builder.rebuild(live_indices);
 
-        SearchKernel<3> kernel{nodes, buckets, points};
+        SearchKernel<3> kernel{nodes, leaf_buckets, points};
 
         WHEN("collect_indices_within runs across several queries and radii") {
             THEN("the returned index set matches brute force") {
@@ -459,7 +466,7 @@ SCENARIO("SearchKernel::collect_indices_within returns every live in-radius inde
                         }
                         std::vector<std::uint32_t> expected;
                         for (std::uint32_t i = 0; i < N; ++i) {
-                            if ((coords[i] - query).squaredNorm() < sq_radius) {
+                            if (coords[i].sq_dist(query) < sq_radius) {
                                 expected.push_back(i);
                             }
                         }
@@ -492,13 +499,13 @@ SCENARIO("SearchKernel::collect_indices_within on an INVALID root returns empty"
          "[search_kernel][collect][empty]") {
     GIVEN("an empty node pool and an INVALID root") {
         PointStore<3>         points{4};
-        LeafBucket            buckets{8};
+        LeafBucket            leaf_buckets{8};
         std::vector<TreeNode> nodes;
-        SearchKernel<3>       kernel{nodes, buckets, points};
+        SearchKernel<3>       kernel{nodes, leaf_buckets, points};
 
         WHEN("collect_indices_within is invoked") {
             const auto result =
-                kernel.collect_indices_within(TreeNode::INVALID, detail::PointType<3>{0, 0, 0}, 1.0f);
+                kernel.collect_indices_within(TreeNode::INVALID, copse::Point<3>{0, 0, 0}, 1.0f);
             THEN("the result is empty") {
                 REQUIRE(result.empty());
             }
@@ -506,9 +513,10 @@ SCENARIO("SearchKernel::collect_indices_within on an INVALID root returns empty"
     }
 }
 
-SCENARIO("SearchKernel skips released indices that buckets still reference", "[search_kernel][liveness]") {
+SCENARIO("SearchKernel skips released indices that leaf_buckets still reference",
+         "[search_kernel][liveness]") {
     GIVEN("a D=3 tree built from 32 points, then a few indices released without rebuild") {
-        using P = detail::PointType<3>;
+        using P = copse::Point<3>;
 
         constexpr std::size_t N = 32;
 
@@ -516,11 +524,12 @@ SCENARIO("SearchKernel skips released indices that buckets still reference", "[s
         std::uniform_real_distribution<float> coord{-10.0f, 10.0f};
 
         PointStore<3>         points{N};
-        LeafBucket            buckets{N * 2};
+        LeafBucket            leaf_buckets{N * 2};
         std::vector<TreeNode> nodes;
         std::vector<BBox<3>>  leaf_bboxes;
         BBox<3>               root_bbox{};
-        TreeBuilder<3>        builder{nodes, buckets, leaf_bboxes, root_bbox, points, /*leaf_bucket_size=*/8, 0.7f, 0.25f};
+        TreeBuilder<3>        builder{
+            nodes, leaf_buckets, leaf_bboxes, root_bbox, points, /*leaf_bucket_size=*/8, 0.7f, 0.25f};
 
         std::vector<P>             coords;
         std::vector<std::uint32_t> live_indices;
@@ -541,7 +550,7 @@ SCENARIO("SearchKernel skips released indices that buckets still reference", "[s
             points.release(idx);
         }
 
-        SearchKernel<3> kernel{nodes, buckets, points};
+        SearchKernel<3> kernel{nodes, leaf_buckets, points};
 
         WHEN("a wide radius search runs against the partially-released tree") {
             const P    query{0.0f, 0.0f, 0.0f};
@@ -551,7 +560,7 @@ SCENARIO("SearchKernel skips released indices that buckets still reference", "[s
                 for (auto idx : released) {
                     const P& gone = coords[idx];
                     for (const auto& neighbor : result) {
-                        REQUIRE((neighbor.coord - gone).squaredNorm() != 0.0f);
+                        REQUIRE(neighbor.coord.sq_dist(gone) != 0.0f);
                     }
                 }
             }
@@ -562,12 +571,12 @@ SCENARIO("SearchKernel skips released indices that buckets still reference", "[s
 SCENARIO("SearchKernel::any_within on an INVALID root returns false", "[search_kernel][any_within][empty]") {
     GIVEN("an empty node pool and an INVALID root") {
         PointStore<3>         points{4};
-        LeafBucket            buckets{8};
+        LeafBucket            leaf_buckets{8};
         std::vector<TreeNode> nodes;
-        SearchKernel<3>       kernel{nodes, buckets, points};
+        SearchKernel<3>       kernel{nodes, leaf_buckets, points};
 
         WHEN("any_within is invoked") {
-            const bool result = kernel.any_within(TreeNode::INVALID, detail::PointType<3>{0, 0, 0}, 1.0f);
+            const bool result = kernel.any_within(TreeNode::INVALID, copse::Point<3>{0, 0, 0}, 1.0f);
             THEN("the predicate is false") {
                 REQUIRE_FALSE(result);
             }
@@ -577,19 +586,19 @@ SCENARIO("SearchKernel::any_within on an INVALID root returns false", "[search_k
 
 SCENARIO("SearchKernel::any_within on a single-point tree", "[search_kernel][any_within]") {
     GIVEN("a tree containing a single point at the origin") {
-        using P = detail::PointType<3>;
+        using P = copse::Point<3>;
 
-        PointStore<3>          points{4};
-        LeafBucket             buckets{8};
-        std::vector<TreeNode>  nodes;
-        std::vector<BBox<3>>   leaf_bboxes;
-        BBox<3>                root_bbox{};
-        TreeBuilder<3>         builder{nodes,    buckets, leaf_bboxes,           root_bbox,
-                                points,   /*leaf_bucket_size=*/4, 0.7f,    0.25f};
+        PointStore<3>         points{4};
+        LeafBucket            leaf_buckets{8};
+        std::vector<TreeNode> nodes;
+        std::vector<BBox<3>>  leaf_bboxes;
+        BBox<3>               root_bbox{};
+        TreeBuilder<3>        builder{
+            nodes, leaf_buckets, leaf_bboxes, root_bbox, points, /*leaf_bucket_size=*/4, 0.7f, 0.25f};
 
         std::vector<std::uint32_t> live_indices{points.acquire(P{0.0f, 0.0f, 0.0f})};
         const auto                 root = builder.rebuild(live_indices);
-        SearchKernel<3>            kernel{nodes, buckets, points};
+        SearchKernel<3>            kernel{nodes, leaf_buckets, points};
 
         WHEN("the query lies inside sq_radius") {
             const bool result = kernel.any_within(root, P{0.5f, 0.0f, 0.0f}, /*sq_radius=*/1.0f);
@@ -616,7 +625,7 @@ SCENARIO("SearchKernel::any_within on a single-point tree", "[search_kernel][any
 
 SCENARIO("SearchKernel::any_within across 10 random points", "[search_kernel][any_within]") {
     GIVEN("a tree built from 10 uniform random D=3 points") {
-        using P = detail::PointType<3>;
+        using P = copse::Point<3>;
 
         constexpr std::size_t N = 10;
 
@@ -624,12 +633,12 @@ SCENARIO("SearchKernel::any_within across 10 random points", "[search_kernel][an
         std::uniform_real_distribution<float> coord{-10.0f, 10.0f};
 
         PointStore<3>         points{N};
-        LeafBucket            buckets{N * 2};
+        LeafBucket            leaf_buckets{N * 2};
         std::vector<TreeNode> nodes;
         std::vector<BBox<3>>  leaf_bboxes;
         BBox<3>               root_bbox{};
-        TreeBuilder<3>        builder{nodes,    buckets, leaf_bboxes,           root_bbox,
-                                points,   /*leaf_bucket_size=*/4, 0.7f,    0.25f};
+        TreeBuilder<3>        builder{
+            nodes, leaf_buckets, leaf_bboxes, root_bbox, points, /*leaf_bucket_size=*/4, 0.7f, 0.25f};
 
         std::vector<P>             coords;
         std::vector<std::uint32_t> live_indices;
@@ -645,7 +654,7 @@ SCENARIO("SearchKernel::any_within across 10 random points", "[search_kernel][an
         }
         const auto root = builder.rebuild(live_indices);
 
-        SearchKernel<3> kernel{nodes, buckets, points};
+        SearchKernel<3> kernel{nodes, leaf_buckets, points};
 
         WHEN("the query coincides with a stored point") {
             const bool result = kernel.any_within(root, coords[3], /*sq_radius=*/1.0e-3f);
@@ -665,15 +674,15 @@ SCENARIO("SearchKernel::any_within across 10 random points", "[search_kernel][an
 
 SCENARIO("SearchKernel::any_within skips released indices", "[search_kernel][any_within][liveness]") {
     GIVEN("a D=3 tree with the only in-radius candidate released after build") {
-        using P = detail::PointType<3>;
+        using P = copse::Point<3>;
 
         PointStore<3>         points{8};
-        LeafBucket            buckets{16};
+        LeafBucket            leaf_buckets{16};
         std::vector<TreeNode> nodes;
         std::vector<BBox<3>>  leaf_bboxes;
         BBox<3>               root_bbox{};
-        TreeBuilder<3>        builder{nodes,    buckets, leaf_bboxes,           root_bbox,
-                                points,   /*leaf_bucket_size=*/4, 0.7f,    0.25f};
+        TreeBuilder<3>        builder{
+            nodes, leaf_buckets, leaf_bboxes, root_bbox, points, /*leaf_bucket_size=*/4, 0.7f, 0.25f};
 
         const std::vector<P> coords{
             P{0.1f, 0.0f, 0.0f}, P{5.0f, 0.0f, 0.0f}, P{0.0f, 5.0f, 0.0f}, P{0.0f, 0.0f, 5.0f}};
@@ -684,7 +693,7 @@ SCENARIO("SearchKernel::any_within skips released indices", "[search_kernel][any
         }
         const auto root = builder.rebuild(live_indices);
 
-        SearchKernel<3> kernel{nodes, buckets, points};
+        SearchKernel<3> kernel{nodes, leaf_buckets, points};
         const P         query{0.0f, 0.0f, 0.0f};
         const float     sq_radius = 1.0f;
 
@@ -706,7 +715,7 @@ SCENARIO("SearchKernel::any_within skips released indices", "[search_kernel][any
 SCENARIO("SearchKernel::any_within agrees with collect_indices_within on 100 random queries",
          "[search_kernel][any_within][oracle]") {
     GIVEN("a D=3 tree built from 256 uniform random points") {
-        using P = detail::PointType<3>;
+        using P = copse::Point<3>;
 
         constexpr std::size_t N = 256;
 
@@ -714,12 +723,12 @@ SCENARIO("SearchKernel::any_within agrees with collect_indices_within on 100 ran
         std::uniform_real_distribution<float> coord{-10.0f, 10.0f};
 
         PointStore<3>         points{N};
-        LeafBucket            buckets{N * 2};
+        LeafBucket            leaf_buckets{N * 2};
         std::vector<TreeNode> nodes;
         std::vector<BBox<3>>  leaf_bboxes;
         BBox<3>               root_bbox{};
-        TreeBuilder<3>        builder{nodes,    buckets, leaf_bboxes,            root_bbox,
-                                points,   /*leaf_bucket_size=*/16, 0.7f,    0.25f};
+        TreeBuilder<3>        builder{
+            nodes, leaf_buckets, leaf_bboxes, root_bbox, points, /*leaf_bucket_size=*/16, 0.7f, 0.25f};
 
         std::vector<P>             coords;
         std::vector<std::uint32_t> live_indices;
@@ -735,7 +744,7 @@ SCENARIO("SearchKernel::any_within agrees with collect_indices_within on 100 ran
         }
         const auto root = builder.rebuild(live_indices);
 
-        SearchKernel<3> kernel{nodes, buckets, points};
+        SearchKernel<3> kernel{nodes, leaf_buckets, points};
 
         WHEN("any_within is cross-checked against collect_indices_within for 100 random queries") {
             THEN("any_within == !collect_indices_within.empty() for every (query, radius)") {
@@ -757,4 +766,4 @@ SCENARIO("SearchKernel::any_within agrees with collect_indices_within on 100 ran
     }
 }
 
-} // namespace topiary::internal
+} // namespace copse::internal

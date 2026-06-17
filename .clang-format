@@ -25,7 +25,7 @@ DerivePointerAlignment: false
 FixNamespaceComments: true
 IncludeBlocks: Regroup
 IncludeCategories:
-  - Regex:    '^"topiary/'
+  - Regex:    '^"copse/'
     Priority: 1
   - Regex:    '^<Eigen/'
     Priority: 2

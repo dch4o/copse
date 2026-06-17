@@ -1,6 +1,8 @@
+// SPDX-FileCopyrightText: 2026 Dohoon Cho
+// SPDX-License-Identifier: MIT
 // BDD tests for PointStore<Dim>: capacity, liveness, point read-back, and acquire semantics.
 
-#include "topiary/impl/point_store.hpp"
+#include "copse/impl/point_store.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -9,9 +11,9 @@
 #include <stdexcept>
 #include <vector>
 
-namespace topiary::internal {
+namespace copse::internal {
 
-using P3f = detail::PointType<3>;
+using P3f = copse::Point<3>;
 
 SCENARIO("PointStore<3> construction", "[point_store][ctor]") {
     GIVEN("a positive capacity") {
@@ -51,9 +53,9 @@ SCENARIO("PointStore<3>::acquire writes the point and returns sequential indices
                 REQUIRE(store.is_live(i0));
                 REQUIRE(store.is_live(i1));
                 REQUIRE(store.is_live(i2));
-                REQUIRE((store.point(i0) - P3f{1, 2, 3}).norm() == 0.0f);
-                REQUIRE((store.point(i1) - P3f{4, 5, 6}).norm() == 0.0f);
-                REQUIRE((store.point(i2) - P3f{7, 8, 9}).norm() == 0.0f);
+                REQUIRE(store.point(i0).sq_dist(P3f{1, 2, 3}) == 0.0f);
+                REQUIRE(store.point(i1).sq_dist(P3f{4, 5, 6}) == 0.0f);
+                REQUIRE(store.point(i2).sq_dist(P3f{7, 8, 9}) == 0.0f);
             }
         }
     }
@@ -72,7 +74,7 @@ SCENARIO("PointStore<3>::acquire wraps around when capacity is exceeded", "[poin
                 REQUIRE(i_new == i0);
                 REQUIRE(store.size() == 3);
                 REQUIRE(store.is_live(i_new));
-                REQUIRE((store.point(i_new) - P3f{9, 9, 9}).norm() == 0.0f);
+                REQUIRE(store.point(i_new).sq_dist(P3f{9, 9, 9}) == 0.0f);
             }
         }
     }
@@ -101,7 +103,7 @@ SCENARIO("PointStore<3> acquire/release maintains the live set across mixed oper
                 THEN("the new index is live and reads back what was written") {
                     REQUIRE(store.is_live(i3));
                     REQUIRE(store.size() == 3);
-                    REQUIRE((store.point(i3) - P3f{3, 3, 3}).norm() == 0.0f);
+                    REQUIRE(store.point(i3).sq_dist(P3f{3, 3, 3}) == 0.0f);
                 }
                 AND_THEN("for_each_live visits exactly the three live indices") {
                     std::set<std::uint32_t> visited;
@@ -143,9 +145,9 @@ SCENARIO("PointStore<3>::generation bumps on every slot reuse", "[point_store][g
         }
 
         WHEN("a slot is acquired (normal branch, store not full)") {
-            const auto i0 = store.acquire(P3f{0, 0, 0});
+            const auto i0                = store.acquire(P3f{0, 0, 0});
             const auto gen_after_acquire = store.generation(i0);
-            const auto i1 = store.acquire(P3f{1, 1, 1});
+            const auto i1                = store.acquire(P3f{1, 1, 1});
 
             THEN("the assigned slot's gen bumped from 0 to 1 on first acquire") {
                 REQUIRE(gen_after_acquire == 1);
@@ -155,7 +157,7 @@ SCENARIO("PointStore<3>::generation bumps on every slot reuse", "[point_store][g
             AND_WHEN("the slot is released and re-acquired (normal branch reuse)") {
                 store.release(i0);
                 const auto gen_after_release = store.generation(i0);
-                const auto i0_reacquired = store.acquire(P3f{9, 9, 9});
+                const auto i0_reacquired     = store.acquire(P3f{9, 9, 9});
 
                 THEN("release does NOT bump the gen but re-acquire does") {
                     REQUIRE(gen_after_release == 1);
@@ -199,4 +201,4 @@ SCENARIO("PointStore<3>::for_each_live visits every live entry exactly once", "[
     }
 }
 
-} // namespace topiary::internal
+} // namespace copse::internal

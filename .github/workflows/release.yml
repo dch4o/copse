@@ -1,0 +1,51 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-publish:
+    name: build binaries & publish pre-release
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+      - name: Resolve version from tag
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+      - name: Build & package static + shared
+        run: |
+          set -eu
+          mkdir -p dist
+          for kind in static shared; do
+            if [ "$kind" = shared ]; then shared=ON; else shared=OFF; fi
+            cmake -S . -B "build-$kind" -G Ninja -DCMAKE_BUILD_TYPE=Release \
+              -DCOPSE_BUILD_TESTS=OFF -DCOPSE_BUILD_BENCHMARKS=OFF \
+              -DBUILD_SHARED_LIBS=$shared
+            cmake --build "build-$kind"
+            cmake --install "build-$kind" --prefix "install-$kind"
+            tar -C "install-$kind" -czf "dist/copse-${VERSION}-linux-x86_64-${kind}.tar.gz" .
+          done
+          ls -l dist
+      - name: Extract release notes from CHANGELOG
+        run: |
+          awk -v v="$VERSION" '
+            $0 ~ ("^## \\[" v "\\]") { f=1; next }
+            /^## \[/      { if (f) exit }
+            /^\[[^]]+\]: / { if (f) exit }
+            f
+          ' CHANGELOG.md > notes.md
+          cat notes.md
+      - name: Publish pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "copse ${VERSION}" \
+            --notes-file notes.md \
+            --prerelease \
+            dist/*.tar.gz

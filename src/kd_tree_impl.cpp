@@ -1,9 +1,11 @@
-#include "topiary/impl/kd_tree_impl.hpp"
+// SPDX-FileCopyrightText: 2026 Dohoon Cho
+// SPDX-License-Identifier: MIT
+#include "copse/impl/kd_tree_impl.hpp"
 
 #include <limits>
 #include <stdexcept>
 
-namespace topiary::internal {
+namespace copse::internal {
 
 template <int Dim>
 KDTreeImpl<Dim>::KDTreeImpl(Config cfg)
@@ -63,7 +65,9 @@ std::size_t KDTreeImpl<Dim>::insert(std::span<const Point> points) {
         ++inserted;
     }
 
-    builder_.maybe_partial_rebuild(root_);
+    if (inserted > 0) {
+        builder_.maybe_partial_rebuild_full(root_);
+    }
     return inserted;
 }
 
@@ -81,7 +85,9 @@ std::size_t KDTreeImpl<Dim>::remove(std::span<const Point> queries) {
         }
     }
 
-    builder_.maybe_partial_rebuild(root_);
+    if (cleared > 0) {
+        builder_.maybe_partial_rebuild(root_);
+    }
     return cleared;
 }
 
@@ -102,6 +108,27 @@ auto KDTreeImpl<Dim>::hybrid_search(const Point& query, std::size_t k, float rad
 }
 
 template <int Dim>
+std::size_t KDTreeImpl<Dim>::box_delete(std::span<const BBox<Dim>> boxes) {
+    std::size_t cleared = 0;
+    for (const auto& box : boxes) {
+        cleared += builder_.box_delete(root_, box);
+    }
+    if (cleared > 0) {
+        builder_.maybe_partial_rebuild(root_);
+    }
+    return cleared;
+}
+
+template <int Dim>
+std::size_t KDTreeImpl<Dim>::radius_crop(const Point& center, float r) {
+    const std::size_t cleared = builder_.radius_crop(root_, center, r);
+    if (cleared > 0) {
+        builder_.maybe_partial_rebuild(root_);
+    }
+    return cleared;
+}
+
+template <int Dim>
 std::size_t KDTreeImpl<Dim>::size() const noexcept {
     return points_.size();
 }
@@ -118,9 +145,7 @@ void KDTreeImpl<Dim>::rebuild_all() {
     leaf_bboxes_.clear();
 
     work_indices_.clear();
-    points_.for_each_live([this](std::uint32_t idx, const Point&) {
-        work_indices_.push_back(idx);
-    });
+    points_.for_each_live([this](std::uint32_t index, const Point&) { work_indices_.push_back(index); });
 
     if (work_indices_.empty()) {
         root_ = TreeNode::INVALID;
@@ -133,4 +158,4 @@ template class KDTreeImpl<2>;
 template class KDTreeImpl<3>;
 template class KDTreeImpl<4>;
 
-} // namespace topiary::internal
+} // namespace copse::internal

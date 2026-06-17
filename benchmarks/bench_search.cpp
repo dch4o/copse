@@ -1,8 +1,10 @@
+// SPDX-FileCopyrightText: 2026 Dohoon Cho
+// SPDX-License-Identifier: MIT
 // Microbenchmark: search-path latency. Single-query measurements against a
 // pre-built tree (knn k=1/8/32, radius, hybrid) and mixed-cycle throughput
 // (1 small insert batch followed by a query burst) at two live-point scales.
 
-#include "topiary/topiary.hpp"
+#include "copse/kd_tree.hpp"
 
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -13,17 +15,17 @@
 #include <random>
 #include <vector>
 
-namespace topiary {
+namespace copse {
 
 namespace {
 
-constexpr std::uint64_t kSeed         = 0x5EA2C400'BEEFULL;
-constexpr std::uint64_t kQuerySeed    = 0xC0FFEE00'9527ULL;
-constexpr float         kResolution   = 1e-6f;
-constexpr float         kCoordExtent  = 100.0f; // spread queries out so density isn't artificially high.
-constexpr std::size_t   kPrefill      = 100'000;
-constexpr std::size_t   kQueryPool    = 256;
-constexpr float         kRadius       = 5.0f; // ~10–50 hits on uniform 100k points in [0,100)^3.
+constexpr std::uint64_t kSeed        = 0x5EA2C400'BEEFULL;
+constexpr std::uint64_t kQuerySeed   = 0xC0FFEE00'9527ULL;
+constexpr float         kResolution  = 1e-6f;
+constexpr float         kCoordExtent = 100.0f; // spread queries out so density isn't artificially high.
+constexpr std::size_t   kPrefill     = 100'000;
+constexpr std::size_t   kQueryPool   = 256;
+constexpr float         kRadius      = 5.0f; // ~10–50 hits on uniform 100k points in [0,100)^3.
 
 using Tree  = KDTree3;
 using Point = Tree::Point;
@@ -34,7 +36,7 @@ std::vector<Point> make_points(std::size_t count, std::uint64_t seed, float exte
     std::vector<Point>                    out;
     out.reserve(count);
     for (std::size_t i = 0; i < count; ++i) {
-        out.emplace_back(dist(rng), dist(rng), dist(rng));
+        out.push_back(Point{dist(rng), dist(rng), dist(rng)});
     }
     return out;
 }
@@ -136,7 +138,7 @@ TEST_CASE("Bench: search throughput in mixed insert/query cycle", "[!benchmark][
     // queries (k=8). Cycle cost is dominated by the query burst; the insert
     // contribution is small. Reported time is the whole cycle.
 
-    constexpr std::uint64_t kMixedSeed  = 0x14820000'A1B5CULL;
+    constexpr std::uint64_t kMixedSeed      = 0x14820000'A1B5CULL;
     constexpr std::uint64_t kMixedQuerySeed = 0xDEADBEEF'CAFEULL;
     constexpr std::size_t   kInsertBatch    = 1'000;
     constexpr std::size_t   kSearchCount    = 10'000;
@@ -271,4 +273,4 @@ TEST_CASE("Bench: radius_search radius sweep", "[!benchmark][search][radius][swe
     };
 }
 
-} // namespace topiary
+} // namespace copse
