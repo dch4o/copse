@@ -23,9 +23,8 @@ partial rebuild.
   (`copse::Point<Dim>`), so the binary ABI does not shift with compiler flags.
 - **Built for streaming.** Fixed capacity + FIFO eviction + resolution dedup hold
   memory flat under an unbounded stream; the partial rebuild amortizes balance.
-- **Fast & lean.** Benchmarked against HKU MARS **ikd-Tree**, copse leads
-  single-threaded on insert, kNN, radius search, and batched spatial delete — with
-  a ~2.8× smaller per-point footprint. [See the comparison →](docs/benchmark/vs_ikd_tree.md)
+- **Tested & sanitized.** The Catch2 suite runs in CI across GCC and Clang, with a
+  dedicated AddressSanitizer / UndefinedBehaviorSanitizer pass on every push.
 - **Drop-in to consume.** Ships static *and* shared libraries; `find_package(copse)`,
   `add_subdirectory`, and FetchContent all work identically, and the shared
   library exports only its public API.
@@ -41,7 +40,9 @@ std::vector<copse::Point<3>> points = /* ... */;
 tree.insert(points);
 
 const copse::Point<3> query{1.0f, 2.0f, 3.0f};
-auto neighbors = tree.knn_search(query, /*k=*/5);   // each: .coord, .sq_dist
+auto nearest = tree.knn_search(query, /*k=*/5);                     // 5 nearest; each: .coord, .sq_dist
+auto within  = tree.radius_search(query, /*radius=*/1.5f);          // every point within the radius
+auto capped  = tree.hybrid_search(query, /*k=*/5, /*radius=*/1.5f); // up to 5 nearest within the radius
 
 tree.box_delete({copse::BBox<3>{{0, 0, 0}, {1, 1, 1}}}); // clear an axis-aligned box
 tree.radius_crop(query, /*r=*/2.0f);                     // keep only points within r
@@ -85,15 +86,13 @@ cmake --build build -j
 ctest --test-dir build --output-on-failure
 ```
 
-CMake options: `COPSE_BUILD_TESTS` (ON), `COPSE_BUILD_BENCHMARKS` (ON),
-`COPSE_BUILD_DEMOS` (OFF — pulls Polyscope), `COPSE_ENABLE_CLANG_TIDY` (OFF).
-
-## Benchmarks
-
-Per-operation reports live in [`docs/benchmark/`](docs/benchmark/):
-[insert](docs/benchmark/insert.md) · [search](docs/benchmark/search.md) ·
-[rebuild](docs/benchmark/rebuild.md) · [remove](docs/benchmark/remove.md) ·
-[vs. ikd-Tree](docs/benchmark/vs_ikd_tree.md).
+| CMake option | Default | Effect |
+| --- | --- | --- |
+| `COPSE_BUILD_TESTS` | `ON` | Build the Catch2 test suite |
+| `COPSE_BUILD_BENCHMARKS` | `ON` | Build the benchmark targets |
+| `COPSE_BUILD_DEMOS` | `OFF` | Build the Polyscope demos (needs GL/X11) |
+| `COPSE_INSTALL` | `ON` | Generate install and package-config rules |
+| `COPSE_ENABLE_CLANG_TIDY` | `OFF` | Run clang-tidy during the build |
 
 ## Requirements
 
