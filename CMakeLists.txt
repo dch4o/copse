@@ -13,6 +13,7 @@ option(COPSE_BUILD_TESTS      "Build copse test suite" ON)
 option(COPSE_BUILD_BENCHMARKS "Build copse benchmarks" ON)
 option(COPSE_BUILD_DEMOS      "Build copse demos (pulls Polyscope; needs GL/X11)" OFF)
 option(COPSE_INSTALL          "Generate install and package-config rules"         ON)
+option(COPSE_WERROR           "Treat first-party warnings as errors (CI)"         OFF)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 include(ClangTidy)
@@ -77,6 +78,9 @@ endif()
 # each reaches the compiler as its own argument (a space-joined string would be
 # passed as a single bad option).
 set(copse_warning_flags -Wall -Wextra -Wpedantic)
+if(COPSE_WERROR)
+    list(APPEND copse_warning_flags -Werror)
+endif()
 target_compile_options(copse PRIVATE
     "$<$<CXX_COMPILER_ID:GNU,Clang>:${copse_warning_flags}>"
 )
