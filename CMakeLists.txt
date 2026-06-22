@@ -56,6 +56,8 @@ target_compile_features(copse PUBLIC cxx_std_20)
 set_target_properties(copse PROPERTIES
     CXX_VISIBILITY_PRESET     hidden
     VISIBILITY_INLINES_HIDDEN ON
+    VERSION                   ${PROJECT_VERSION}
+    SOVERSION                 ${PROJECT_VERSION_MAJOR}
 )
 generate_export_header(copse
     EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/copse/copse_export.h
@@ -101,18 +103,26 @@ endif()
 if(COPSE_INSTALL)
     include(CMakePackageConfigHelpers)
 
+    # Component split for packaging: the versioned shared object is `runtime`;
+    # everything needed only to build against copse (its devlink, headers, and
+    # CMake package config) is `dev`. A plain `cmake --install` with no
+    # --component still installs both, so find_package consumers are unaffected.
     install(TARGETS copse
         EXPORT  copseTargets
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT dev
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+                COMPONENT          runtime
+                NAMELINK_COMPONENT dev
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT runtime
     )
     # Ship only the public headers; impl/ is private (PIMPL internals, src-only).
     install(DIRECTORY include/copse DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        COMPONENT dev
         PATTERN "impl" EXCLUDE
     )
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/copse/copse_export.h
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/copse
+        COMPONENT   dev
     )
 
     set(COPSE_CMAKE_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/copse)
@@ -120,6 +130,7 @@ if(COPSE_INSTALL)
         NAMESPACE   copse::
         FILE        copseTargets.cmake
         DESTINATION ${COPSE_CMAKE_DIR}
+        COMPONENT   dev
     )
 
     configure_package_config_file(
@@ -136,5 +147,10 @@ if(COPSE_INSTALL)
         ${CMAKE_CURRENT_BINARY_DIR}/copseConfig.cmake
         ${CMAKE_CURRENT_BINARY_DIR}/copseConfigVersion.cmake
         DESTINATION ${COPSE_CMAKE_DIR}
+        COMPONENT   dev
     )
+
+    # CPack Debian packages (libcopse<soversion> + libcopse-dev), built from the
+    # install rules above by `cpack -G DEB` against a shared build.
+    include(Packaging)
 endif()
