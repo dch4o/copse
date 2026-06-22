@@ -1,0 +1,51 @@
+name: Coverage
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  coverage:
+    name: coverage (gcov + lcov, >=80% lines)
+    runs-on: ubuntu-24.04
+    env:
+      CC: gcc
+      CXX: g++
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y ninja-build lcov
+      - name: Configure (GCC, instrumented, no optimization)
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+            -DCOPSE_BUILD_BENCHMARKS=OFF \
+            -DCMAKE_CXX_FLAGS="--coverage -fprofile-update=atomic" \
+            -DCMAKE_EXE_LINKER_FLAGS="--coverage"
+      - name: Build
+        run: cmake --build build -j "$(nproc)"
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - name: Capture coverage
+        run: |
+          set -eu
+          lcov --capture --directory build --output-file coverage.info \
+            --rc geninfo_unexecuted_blocks=1 \
+            --ignore-errors mismatch,gcov,source,negative
+          lcov --remove coverage.info \
+            '/usr/*' '*/tests/*' '*/_deps/*' '*/catch2/*' '*/copse_export.h' \
+            --output-file coverage.info --ignore-errors unused
+          lcov --list coverage.info
+      - name: Report + comment + gate (>=80%) + HTML artifact
+        uses: zgosalvez/github-actions-report-lcov@v7.0.12
+        with:
+          coverage-files: coverage.info
+          minimum-coverage: 80
+          artifact-name: coverage-html
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          update-comment: true
