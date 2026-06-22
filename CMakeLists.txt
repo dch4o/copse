@@ -107,7 +107,10 @@ if(COPSE_INSTALL)
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
-    install(DIRECTORY include/copse DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    # Ship only the public headers; impl/ is private (PIMPL internals, src-only).
+    install(DIRECTORY include/copse DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        PATTERN "impl" EXCLUDE
+    )
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/copse/copse_export.h
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/copse
     )

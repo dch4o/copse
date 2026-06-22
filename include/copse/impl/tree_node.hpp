@@ -3,7 +3,7 @@
 #pragma once
 
 #include "copse/bbox.hpp"
-#include "copse/impl/point_traits.hpp"
+#include "copse/point_traits.hpp"
 
 #include <cstdint>
 

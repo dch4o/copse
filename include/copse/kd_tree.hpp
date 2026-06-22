@@ -4,7 +4,7 @@
 
 #include "copse/bbox.hpp"
 #include "copse/copse_export.h"
-#include "copse/impl/point_traits.hpp"
+#include "copse/point_traits.hpp"
 #include "copse/point.hpp"
 
 #include <cstddef>
