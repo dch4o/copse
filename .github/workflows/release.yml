@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   build-and-publish:
-    name: build binaries & publish pre-release
+    name: build packages & publish pre-release
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -17,20 +17,14 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ninja-build dpkg-dev file
       - name: Resolve version from tag
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
-      - name: Build & package static + shared
+      - name: Build shared library (for .deb)
         run: |
           set -eu
           mkdir -p dist
-          for kind in static shared; do
-            if [ "$kind" = shared ]; then shared=ON; else shared=OFF; fi
-            cmake -S . -B "build-$kind" -G Ninja -DCMAKE_BUILD_TYPE=Release \
-              -DCOPSE_BUILD_TESTS=OFF -DCOPSE_BUILD_BENCHMARKS=OFF \
-              -DBUILD_SHARED_LIBS=$shared
-            cmake --build "build-$kind"
-            cmake --install "build-$kind" --prefix "install-$kind"
-            tar -C "install-$kind" -czf "dist/copse-${VERSION}-linux-x86_64-${kind}.tar.gz" .
-          done
-          ls -l dist
+          cmake -S . -B build-shared -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCOPSE_BUILD_TESTS=OFF -DCOPSE_BUILD_BENCHMARKS=OFF \
+            -DBUILD_SHARED_LIBS=ON
+          cmake --build build-shared
       - name: Build .deb packages (runtime + dev)
         run: |
           set -eu
@@ -58,4 +52,4 @@ jobs:
             --title "copse ${VERSION}" \
             --notes-file notes.md \
             --prerelease \
-            dist/*.tar.gz dist/*.deb
+            dist/*.deb
