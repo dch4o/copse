@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #pragma once
 
-#include "copse/impl/point_traits.hpp"
+#include "copse/point_traits.hpp"
 
 namespace copse {
 

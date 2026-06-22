@@ -4,7 +4,7 @@
 
 #include "copse/impl/leaf_bucket.hpp"
 #include "copse/impl/point_store.hpp"
-#include "copse/impl/point_traits.hpp"
+#include "copse/point_traits.hpp"
 #include "copse/impl/tree_node.hpp"
 #include "copse/kd_tree.hpp"
 
