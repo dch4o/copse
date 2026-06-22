@@ -75,7 +75,7 @@ target_link_libraries(your_app PRIVATE copse::copse)
 
 copse has no runtime dependencies and propagates its C++20 requirement to
 consumers. A complete consumer is in [`examples/find_package/`](examples/find_package/),
-and prebuilt Linux binaries are attached to each
+and Debian/Ubuntu `.deb` packages (runtime + dev) are attached to each
 [release](https://github.com/dch4o/copse/releases).
 
 ## Build & test
