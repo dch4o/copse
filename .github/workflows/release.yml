@@ -45,11 +45,10 @@ jobs:
           ' CHANGELOG.md > notes.md
           cat notes.md
       - name: Publish pre-release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create "$GITHUB_REF_NAME" \
-            --title "$GITHUB_REF_NAME" \
-            --notes-file notes.md \
-            --prerelease \
-            dist/*.deb
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body_path: notes.md
+          prerelease: true
+          files: dist/*.deb
