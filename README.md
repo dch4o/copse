@@ -6,6 +6,7 @@ point clouds, and anything where points stream in, get queried, and age out.
 [![Build & Test](https://github.com/dch4o/copse/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/dch4o/copse/actions/workflows/build-and-test.yml)
 [![Sanitizers](https://github.com/dch4o/copse/actions/workflows/sanitizers.yml/badge.svg)](https://github.com/dch4o/copse/actions/workflows/sanitizers.yml)
 [![Packaging](https://github.com/dch4o/copse/actions/workflows/packaging.yml/badge.svg)](https://github.com/dch4o/copse/actions/workflows/packaging.yml)
+[![Coverage](https://github.com/dch4o/copse/actions/workflows/coverage.yml/badge.svg)](https://github.com/dch4o/copse/actions/workflows/coverage.yml)
 [![Release](https://img.shields.io/github/v/release/dch4o/copse?include_prereleases&sort=semver)](https://github.com/dch4o/copse/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
@@ -24,8 +25,9 @@ partial rebuild.
 - **Built for streaming.** Fixed capacity + FIFO eviction + resolution dedup hold
   memory flat under an unbounded stream; the partial rebuild amortizes balance.
 - **Tested & sanitized.** The Catch2 suite runs in CI across GCC and Clang, with a
-  dedicated AddressSanitizer / UndefinedBehaviorSanitizer pass on every push.
-- **Drop-in to consume.** Ships static *and* shared libraries; `find_package(copse)`,
+  dedicated AddressSanitizer / UndefinedBehaviorSanitizer pass on every push and a
+  line-coverage gate that blocks merges below a floor.
+- **Drop-in to consume.** Builds as a static *or* shared library; `find_package(copse)`,
   `add_subdirectory`, and FetchContent all work identically, and the shared
   library exports only its public API.
 
