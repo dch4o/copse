@@ -51,11 +51,15 @@ done
 
 # Emit "<binary>\t<benchmark>\t<mean_ns>" for every benchmark, sorted.
 extract() {
+  # A BENCHMARK name is only unique within its TEST_CASE, so qualify it with
+  # the case name. <TestCase ...> carries a filename="..." attribute that also
+  # contains name=", so anchor the match to the element to avoid grabbing it.
   awk '
     function bin(f,  b){ b=f; sub(/.*\//,"",b); sub(/\.xml$/,"",b); return b }
-    /<BenchmarkResults / { nm=$0; sub(/.*name="/,"",nm); sub(/".*/,"",nm) }
+    /<TestCase /        { tc=$0; sub(/.*<TestCase name="/,"",tc); sub(/".*/,"",tc); sub(/^Bench: /,"",tc) }
+    /<BenchmarkResults / { nm=$0; sub(/.*<BenchmarkResults name="/,"",nm); sub(/".*/,"",nm) }
     /<mean /            { v=$0; sub(/.*value="/,"",v); sub(/".*/,"",v);
-                          printf "%s\t%s\t%s\n", bin(FILENAME), nm, v }
+                          printf "%s\t%s :: %s\t%s\n", bin(FILENAME), tc, nm, v }
   ' "$tmp"/*.xml | sort
 }
 
