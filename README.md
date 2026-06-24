@@ -85,7 +85,8 @@ and Debian/Ubuntu `.deb` packages (runtime + dev) are attached to each
 ```sh
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
-ctest --test-dir build --output-on-failure
+ctest --test-dir build -L unit --output-on-failure  # fast functional suite
+ctest --test-dir build -L bench                      # benchmarks (slower, optional)
 ```
 
 | CMake option | Default | Effect |
