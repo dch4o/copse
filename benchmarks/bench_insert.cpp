@@ -64,7 +64,7 @@ TEST_CASE("Bench: batched insert into KDTree3", "[!benchmark][insert]") {
 }
 
 TEST_CASE("Bench: insert batch-size sweep, cold tree", "[!benchmark][insert][sweep]") {
-    // Sweep batch ∈ {100, 1k, 10k} at capacity 100k and 1M. Each iteration
+    // Sweep batch ∈ {100, 1k, 10k} at capacity 100k and 250k. Each iteration
     // constructs a fresh empty tree and inserts the batch once, so timings
     // include construction cost.
 
@@ -89,33 +89,33 @@ TEST_CASE("Bench: insert batch-size sweep, cold tree", "[!benchmark][insert][swe
         return tree.insert(batch_10k);
     };
 
-    BENCHMARK("cold insert: capacity 1M, batch 100") {
-        Tree tree{make_config(1'000'000)};
+    BENCHMARK("cold insert: capacity 250k, batch 100") {
+        Tree tree{make_config(250'000)};
         return tree.insert(batch_100);
     };
 
-    BENCHMARK("cold insert: capacity 1M, batch 1k") {
-        Tree tree{make_config(1'000'000)};
+    BENCHMARK("cold insert: capacity 250k, batch 1k") {
+        Tree tree{make_config(250'000)};
         return tree.insert(batch_1k);
     };
 
-    BENCHMARK("cold insert: capacity 1M, batch 10k") {
-        Tree tree{make_config(1'000'000)};
+    BENCHMARK("cold insert: capacity 250k, batch 10k") {
+        Tree tree{make_config(250'000)};
         return tree.insert(batch_10k);
     };
 }
 
-TEST_CASE("Bench: insert into a full 1M-capacity tree (FIFO eviction)", "[!benchmark][insert][fifo]") {
-    // Warm path: capacity-1M tree pre-filled to full, then a single 1k batch
+TEST_CASE("Bench: insert into a full 250k-capacity tree (FIFO eviction)", "[!benchmark][insert][fifo]") {
+    // Warm path: capacity-250k tree pre-filled to full, then a single 1k batch
     // measured. Every inserted point evicts the FIFO head.
 
     constexpr std::uint64_t kSeed = 0xB47C4500'1A5E1ULL;
 
-    BENCHMARK_ADVANCED("insert into full 1M tree (3)")
+    BENCHMARK_ADVANCED("insert into full 250k tree (3)")
     (Catch::Benchmark::Chronometer meter) {
-        const auto fill  = make_points(1'000'000, kSeed ^ 0xF0u);
+        const auto fill  = make_points(250'000, kSeed ^ 0xF0u);
         const auto batch = make_points(1'000, kSeed ^ 0xF1u);
-        Tree       tree{make_config(1'000'000)};
+        Tree       tree{make_config(250'000)};
         tree.insert(fill);
         meter.measure([&] { return tree.insert(batch); });
     };
@@ -158,28 +158,15 @@ TEST_CASE("Bench: cold vs warm insert across capacity (D=3, batch=10k)", "[!benc
         meter.measure([&] { return tree.insert(batch); });
     };
 
-    BENCHMARK("cold insert: capacity 500k, batch 10k") {
-        Tree tree{make_config(500'000)};
+    BENCHMARK("cold insert: capacity 250k, batch 10k") {
+        Tree tree{make_config(250'000)};
         return tree.insert(batch);
     };
 
-    BENCHMARK_ADVANCED("warm insert (FIFO eviction): capacity 500k, batch 10k")
+    BENCHMARK_ADVANCED("warm insert (FIFO eviction): capacity 250k, batch 10k")
     (Catch::Benchmark::Chronometer meter) {
-        const auto fill = make_points(500'000, kSeed ^ 0x1u);
-        Tree       tree{make_config(500'000)};
-        tree.insert(fill);
-        meter.measure([&] { return tree.insert(batch); });
-    };
-
-    BENCHMARK("cold insert: capacity 1M, batch 10k") {
-        Tree tree{make_config(1'000'000)};
-        return tree.insert(batch);
-    };
-
-    BENCHMARK_ADVANCED("warm insert (FIFO eviction): capacity 1M, batch 10k")
-    (Catch::Benchmark::Chronometer meter) {
-        const auto fill = make_points(1'000'000, kSeed ^ 0x1u);
-        Tree       tree{make_config(1'000'000)};
+        const auto fill = make_points(250'000, kSeed ^ 0x1u);
+        Tree       tree{make_config(250'000)};
         tree.insert(fill);
         meter.measure([&] { return tree.insert(batch); });
     };
