@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Simple local benchmark regression check.
 #
-# Runs the copse benchmarks and compares each benchmark's mean against a
+# Runs the `bench`-labelled ctest benchmarks and compares each mean against a
 # committed baseline (docs/benchmark/baseline.tsv), flagging rows that got
 # slower than the baseline by more than the threshold. Benchmark numbers are
 # hardware-specific, so run this on the SAME machine that produced the
@@ -39,7 +39,17 @@ baseline="$repo_root/docs/benchmark/baseline.tsv"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-for bench in bench_insert bench_search bench_rebuild bench_remove; do
+# Discover the benchmark binaries from the `bench` ctest label — the single
+# source of truth, so a newly added bench is picked up here automatically.
+mapfile -t benches < <(ctest --test-dir "$build" -L bench -N 2>/dev/null \
+  | awk '/Test #[0-9]+: /{print $NF}')
+if [ "${#benches[@]}" -eq 0 ]; then
+  echo "no 'bench'-labelled tests under '$build' — configure with" \
+       "-DCOPSE_BUILD_BENCHMARKS=ON and build first" >&2
+  exit 2
+fi
+
+for bench in "${benches[@]}"; do
   bin=$(find "$build" -name "$bench" -type f -perm -u+x | head -1)
   if [ -z "$bin" ]; then
     echo "missing benchmark binary '$bench' under '$build' — build first" >&2
@@ -49,18 +59,25 @@ for bench in bench_insert bench_search bench_rebuild bench_remove; do
     --out "$tmp/${bench}.xml"
 done
 
-# Emit "<binary>\t<benchmark>\t<mean_ns>" for every benchmark, sorted.
+# Emit "<binary>\t<case> :: <benchmark>\t<mean_ns>" for every benchmark, sorted.
+# Parse the Catch2 XML reporter with a real XML parser: each <TestCase> wraps
+# <BenchmarkResults name="..."> holding a <mean value="..."/>. A BENCHMARK name
+# is only unique within its TEST_CASE, so the key qualifies it with the case.
 extract() {
-  # A BENCHMARK name is only unique within its TEST_CASE, so qualify it with
-  # the case name. <TestCase ...> carries a filename="..." attribute that also
-  # contains name=", so anchor the match to the element to avoid grabbing it.
-  awk '
-    function bin(f,  b){ b=f; sub(/.*\//,"",b); sub(/\.xml$/,"",b); return b }
-    /<TestCase /        { tc=$0; sub(/.*<TestCase name="/,"",tc); sub(/".*/,"",tc); sub(/^Bench: /,"",tc) }
-    /<BenchmarkResults / { nm=$0; sub(/.*<BenchmarkResults name="/,"",nm); sub(/".*/,"",nm) }
-    /<mean /            { v=$0; sub(/.*value="/,"",v); sub(/".*/,"",v);
-                          printf "%s\t%s :: %s\t%s\n", bin(FILENAME), tc, nm, v }
-  ' "$tmp"/*.xml | sort
+  python3 - "$tmp"/*.xml <<'PY'
+import os, sys, xml.etree.ElementTree as ET
+rows = []
+for path in sys.argv[1:]:
+    binary = os.path.basename(path)[:-len(".xml")]
+    for case in ET.parse(path).getroot().iter("TestCase"):
+        name = case.get("name", "").removeprefix("Bench: ")
+        for result in case.iter("BenchmarkResults"):
+            mean = result.find("mean")
+            if mean is not None:
+                rows.append((binary, f"{name} :: {result.get('name', '')}", mean.get("value", "")))
+for row in sorted(rows):
+    print("\t".join(row))
+PY
 }
 
 if [ "$update" = 1 ]; then
@@ -88,4 +105,4 @@ awk -v thr="$threshold" '
     printf "%s\t%s\t%.1f\t%.1f\t%+.1f\t%s\n", $1, $2, b, c, d, st
   }
   END { exit fail+0 }
-' "$baseline" "$tmp/current.tsv" | column -t -s "$(printf '\t')"
+' "$baseline" "$tmp/current.tsv" | { column -t -s "$(printf '\t')" 2>/dev/null || cat; }
