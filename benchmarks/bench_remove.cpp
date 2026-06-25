@@ -56,14 +56,14 @@ std::vector<Point> sample_queries(const std::vector<Point>& fill, std::size_t co
 
 } // namespace
 
-TEST_CASE("Bench: remove query-count sweep, 1M points", "[!benchmark][remove][sweep]") {
-    // Pre-fill 1M, then run remove() against query lists of varying size. Every
+TEST_CASE("Bench: remove query-count sweep, 250k points", "[!benchmark][remove][sweep]") {
+    // Pre-fill 250k, then run remove() against query lists of varying size. Every
     // query is a coordinate drawn from the prefill, so each match is guaranteed.
 
     constexpr std::uint64_t kSeed     = 0xD5E2C400'BEEFULL;
-    constexpr std::size_t   kCapacity = 1'000'000;
+    constexpr std::size_t   kCapacity = 250'000;
 
-    BENCHMARK_ADVANCED("remove 1k queries (3, N=1M)")
+    BENCHMARK_ADVANCED("remove 1k queries (3, N=250k)")
     (Catch::Benchmark::Chronometer meter) {
         const auto fill    = make_points(kCapacity, kSeed ^ 0x1u);
         const auto queries = sample_queries(fill, 1'000, kSeed ^ 0x3u);
@@ -72,7 +72,7 @@ TEST_CASE("Bench: remove query-count sweep, 1M points", "[!benchmark][remove][sw
         meter.measure([&] { return tree.remove(queries); });
     };
 
-    BENCHMARK_ADVANCED("remove 10k queries (3, N=1M)")
+    BENCHMARK_ADVANCED("remove 10k queries (3, N=250k)")
     (Catch::Benchmark::Chronometer meter) {
         const auto fill    = make_points(kCapacity, kSeed ^ 0x1u);
         const auto queries = sample_queries(fill, 10'000, kSeed ^ 0x4u);

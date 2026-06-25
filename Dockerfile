@@ -60,6 +60,7 @@ RUN wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
     && apt-get install -y -q --no-install-recommends \
     clang-format-${LLVM_VERSION} \
     clang-tidy-${LLVM_VERSION} \
+    lcov \
     sudo \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
@@ -101,10 +102,13 @@ RUN if id -u ${USER_UID} >/dev/null 2>&1; then \
     && chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}
 USER ${USERNAME}
 
-# Set working directory
+# Set working directory. Default into the bind-mounted repo (the devcontainer
+# mounts the workspace at ${HOME}/${WORKSPACE}/${WORKSPACE_FOLDER}) so that
+# `docker exec` and shells land in the project root — no need to cd first.
 ENV HOME=/home/${USERNAME}
 ARG WORKSPACE=workspaces
-WORKDIR ${HOME}/${WORKSPACE}
+ARG WORKSPACE_FOLDER=copse
+WORKDIR ${HOME}/${WORKSPACE}/${WORKSPACE_FOLDER}
 
 # Default command
 CMD [ "sleep", "infinity" ]

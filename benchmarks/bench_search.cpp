@@ -49,7 +49,7 @@ Tree::Config make_config(std::size_t capacity) {
 }
 
 Tree build_prefilled_tree() {
-    Tree       tree{make_config(1'000'000)};
+    Tree       tree{make_config(250'000)};
     const auto fill = make_points(kPrefill, kSeed, kCoordExtent);
     tree.insert(fill);
     return tree;
@@ -161,12 +161,12 @@ TEST_CASE("Bench: search throughput in mixed insert/query cycle", "[!benchmark][
         });
     };
 
-    BENCHMARK_ADVANCED("1k insert + 10k searches (3, N=500k)")
+    BENCHMARK_ADVANCED("1k insert + 10k searches (3, N=250k)")
     (Catch::Benchmark::Chronometer meter) {
-        const auto fill    = make_points(500'000, kMixedSeed ^ 0x20u, kCoordExtent);
+        const auto fill    = make_points(250'000, kMixedSeed ^ 0x20u, kCoordExtent);
         const auto batch   = make_points(kInsertBatch, kMixedSeed ^ 0x21u, kCoordExtent);
         const auto queries = make_points(kSearchCount, kMixedQuerySeed ^ 0x1u, kCoordExtent);
-        Tree       tree{make_config(1'000'000)};
+        Tree       tree{make_config(250'000)};
         tree.insert(fill);
         meter.measure([&] {
             tree.insert(batch);
@@ -205,18 +205,8 @@ TEST_CASE("Bench: knn_search N sweep (k=8)", "[!benchmark][search][knn][sweep]")
         });
     };
 
-    BENCHMARK_ADVANCED("knn k=8 (3, N=500k)")(Catch::Benchmark::Chronometer meter) {
-        Tree                     tree    = build_prefilled_tree_n(500'000);
-        const auto               queries = make_points(kQueryPool, kQuerySeed, kCoordExtent);
-        std::atomic<std::size_t> cursor{0};
-        meter.measure([&] {
-            const auto& q = queries[cursor.fetch_add(1, std::memory_order_relaxed) % queries.size()];
-            return tree.knn_search(q, 8);
-        });
-    };
-
-    BENCHMARK_ADVANCED("knn k=8 (3, N=1M)")(Catch::Benchmark::Chronometer meter) {
-        Tree                     tree    = build_prefilled_tree_n(1'000'000);
+    BENCHMARK_ADVANCED("knn k=8 (3, N=250k)")(Catch::Benchmark::Chronometer meter) {
+        Tree                     tree    = build_prefilled_tree_n(250'000);
         const auto               queries = make_points(kQueryPool, kQuerySeed, kCoordExtent);
         std::atomic<std::size_t> cursor{0};
         meter.measure([&] {

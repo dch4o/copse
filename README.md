@@ -85,7 +85,8 @@ and Debian/Ubuntu `.deb` packages (runtime + dev) are attached to each
 ```sh
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
-ctest --test-dir build --output-on-failure
+ctest --test-dir build -L unit --output-on-failure  # fast functional suite
+ctest --test-dir build -L bench                      # benchmarks (slower, optional)
 ```
 
 | CMake option | Default | Effect |
@@ -96,6 +97,25 @@ ctest --test-dir build --output-on-failure
 | `COPSE_INSTALL` | `ON` | Generate install and package-config rules |
 | `COPSE_ENABLE_CLANG_TIDY` | `OFF` | Run clang-tidy during the build |
 
+## Demos
+
+Two optional Polyscope 3D visualizers (off by default; need GL + X11):
+
+- **`public_viz`** — the client's view through the public API: stream points in,
+  delete and crop, and run kNN / radius / hybrid queries interactively.
+- **`structure_viz`** — the internals laid bare: points colored by leaf and
+  leaf-cell AABBs as wireframes, animating cell re-partitioning across rebuilds.
+
+```sh
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCOPSE_BUILD_DEMOS=ON
+cmake --build build
+./build/demo/public_viz        # or ./build/demo/structure_viz
+```
+
+Polyscope v2.6.1 is fetched at build time via FetchContent; it is a demo-only
+dependency and never part of the installed library. Both binaries accept a `dump`
+argument for a headless text snapshot.
+
 ## Requirements
 
 C++20. Tested on Linux with GCC and Clang; Windows/MSVC is not supported.
@@ -103,5 +123,5 @@ C++20. Tested on Linux with GCC and Clang; Windows/MSVC is not supported.
 ## License
 
 MIT — see [`LICENSE`](LICENSE). The distributed library contains no third-party
-code; [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) lists the build- and
-test-only dependencies.
+code; Catch2 (tests/benchmarks) and Polyscope (demos) are fetched at build time
+only and never ship in the installed artifacts.
